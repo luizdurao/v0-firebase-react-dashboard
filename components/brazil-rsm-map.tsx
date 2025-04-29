@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps"
 import { Tooltip } from "react-tooltip"
 
@@ -67,6 +67,31 @@ interface BrazilRsmMapProps {
 const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilRsmMapProps) => {
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
   const [tooltipContent, setTooltipContent] = useState("")
+  const [geoData, setGeoData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch GeoJSON data
+  useEffect(() => {
+    const fetchGeoData = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(BRAZIL_GEO_URL)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch GeoJSON: ${response.status}`)
+        }
+        const data = await response.json()
+        setGeoData(data)
+        setLoading(false)
+      } catch (err) {
+        console.error("Error fetching GeoJSON:", err)
+        setError(err.message || "Failed to load map data")
+        setLoading(false)
+      }
+    }
+
+    fetchGeoData()
+  }, [])
 
   // Obter valor para exibir com base na aba ativa
   const getDisplayValue = (regionId) => {
@@ -178,6 +203,186 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab }: Brazi
     }
   })
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div
+        className="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center"
+        style={{ minHeight: "400px" }}
+      >
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+        <p className="text-gray-500">Carregando mapa do Brasil...</p>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div
+        className="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center"
+        style={{ minHeight: "400px" }}
+      >
+        <div className="text-red-500 text-xl mb-2">Erro ao carregar o mapa</div>
+        <p className="text-gray-500 mb-4">{error}</p>
+        <button
+          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90"
+          onClick={() => window.location.reload()}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
+
+  // Fallback to simplified map if GeoJSON fails to load
+  if (!geoData) {
+    return (
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <div className="mb-4 text-center text-sm font-medium">Mapa do Brasil - Regiões (Simplificado)</div>
+
+        <div className="aspect-[4/5] w-full relative">
+          <svg viewBox="0 0 450 500" className="w-full h-full">
+            {/* Simplified region shapes */}
+            <path
+              d="M100,100 L250,120 L230,220 L80,200 Z"
+              fill={getRegionColor("north")}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onMouseEnter={() => {
+                setHoveredRegion("north")
+                setTooltipContent(generateTooltipContent("north"))
+              }}
+              onMouseLeave={() => {
+                setHoveredRegion(null)
+                setTooltipContent("")
+              }}
+              onClick={() => onRegionSelect("north")}
+              data-tooltip-id="map-tooltip"
+              data-tooltip-html={generateTooltipContent("north")}
+            />
+            <path
+              d="M250,120 L350,150 L320,250 L230,220 Z"
+              fill={getRegionColor("northeast")}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onMouseEnter={() => {
+                setHoveredRegion("northeast")
+                setTooltipContent(generateTooltipContent("northeast"))
+              }}
+              onMouseLeave={() => {
+                setHoveredRegion(null)
+                setTooltipContent("")
+              }}
+              onClick={() => onRegionSelect("northeast")}
+              data-tooltip-id="map-tooltip"
+              data-tooltip-html={generateTooltipContent("northeast")}
+            />
+            <path
+              d="M80,200 L230,220 L200,320 L50,300 Z"
+              fill={getRegionColor("central-west")}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onMouseEnter={() => {
+                setHoveredRegion("central-west")
+                setTooltipContent(generateTooltipContent("central-west"))
+              }}
+              onMouseLeave={() => {
+                setHoveredRegion(null)
+                setTooltipContent("")
+              }}
+              onClick={() => onRegionSelect("central-west")}
+              data-tooltip-id="map-tooltip"
+              data-tooltip-html={generateTooltipContent("central-west")}
+            />
+            <path
+              d="M230,220 L320,250 L290,350 L200,320 Z"
+              fill={getRegionColor("southeast")}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onMouseEnter={() => {
+                setHoveredRegion("southeast")
+                setTooltipContent(generateTooltipContent("southeast"))
+              }}
+              onMouseLeave={() => {
+                setHoveredRegion(null)
+                setTooltipContent("")
+              }}
+              onClick={() => onRegionSelect("southeast")}
+              data-tooltip-id="map-tooltip"
+              data-tooltip-html={generateTooltipContent("southeast")}
+            />
+            <path
+              d="M200,320 L290,350 L260,450 L170,420 Z"
+              fill={getRegionColor("south")}
+              stroke="#FFFFFF"
+              strokeWidth="2"
+              onMouseEnter={() => {
+                setHoveredRegion("south")
+                setTooltipContent(generateTooltipContent("south"))
+              }}
+              onMouseLeave={() => {
+                setHoveredRegion(null)
+                setTooltipContent("")
+              }}
+              onClick={() => onRegionSelect("south")}
+              data-tooltip-id="map-tooltip"
+              data-tooltip-html={generateTooltipContent("south")}
+            />
+
+            {/* Region labels */}
+            <text x="150" y="160" className="text-xs font-medium" fill="#000">
+              Norte
+            </text>
+            <text x="280" y="180" className="text-xs font-medium" fill="#000">
+              Nordeste
+            </text>
+            <text x="130" y="260" className="text-xs font-medium" fill="#000">
+              Centro-Oeste
+            </text>
+            <text x="250" y="280" className="text-xs font-medium" fill="#000">
+              Sudeste
+            </text>
+            <text x="220" y="380" className="text-xs font-medium" fill="#000">
+              Sul
+            </text>
+          </svg>
+        </div>
+
+        <Tooltip id="map-tooltip" className="z-50" />
+
+        {/* Legenda */}
+        <div className="mt-4 p-3 border border-gray-200 rounded-lg">
+          <div className="text-sm font-medium mb-2">Legenda</div>
+          <div className="grid grid-cols-5 gap-2">
+            {regionValues.map((region) => (
+              <div
+                key={region.id}
+                className={`flex flex-col items-center ${!region.isFiltered ? "opacity-50" : ""}`}
+                onClick={() => {
+                  if (region.isFiltered) {
+                    onRegionSelect(region.id === selectedRegion ? "all" : region.id)
+                  }
+                }}
+                style={{ cursor: region.isFiltered ? "pointer" : "not-allowed" }}
+              >
+                <div
+                  className="w-4 h-4 rounded-sm mb-1"
+                  style={{
+                    backgroundColor: region.isFiltered ? region.color : "#e5e5e5",
+                    opacity: selectedRegion === region.id || selectedRegion === "all" ? 1 : 0.5,
+                  }}
+                />
+                <div className="text-xs font-medium">{region.name}</div>
+                <div className="text-xs">{region.formattedValue}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm">
       <div className="mb-4 text-center text-sm font-medium">Mapa do Brasil - Regiões</div>
@@ -191,7 +396,7 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab }: Brazi
           }}
         >
           <ZoomableGroup zoom={1} maxZoom={3} minZoom={1}>
-            <Geographies geography={BRAZIL_GEO_URL}>
+            <Geographies geography={geoData}>
               {({ geographies }) =>
                 geographies.map((geo) => {
                   const stateCode = geo.properties.sigla
