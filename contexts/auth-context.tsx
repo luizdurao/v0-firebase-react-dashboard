@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import { auth, db } from "@/lib/firebase"
+import { auth, db, isFirebaseInitialized } from "@/lib/firebase"
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
 
@@ -24,33 +24,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser)
+    // Skip if Firebase is not initialized
+    if (!isFirebaseInitialized()) {
+      setLoading(false)
+      return () => {}
+    }
 
-      if (currentUser) {
-        try {
-          // Verificar se o usuário é um administrador
-          const userDoc = await getDoc(doc(db, "users", currentUser.uid))
-          if (userDoc.exists()) {
-            setIsAdmin(userDoc.data().role === "admin")
-          } else {
+    try {
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        setUser(currentUser)
+
+        if (currentUser) {
+          try {
+            // Verificar se o usuário é um administrador
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid))
+            if (userDoc.exists()) {
+              setIsAdmin(userDoc.data().role === "admin")
+            } else {
+              setIsAdmin(false)
+            }
+          } catch (err) {
+            console.error("Erro ao verificar permissões:", err)
             setIsAdmin(false)
           }
-        } catch (err) {
-          console.error("Erro ao verificar permissões:", err)
+        } else {
           setIsAdmin(false)
         }
-      } else {
-        setIsAdmin(false)
-      }
 
+        setLoading(false)
+      })
+
+      return () => unsubscribe()
+    } catch (error) {
+      console.error("Erro ao configurar listener de autenticação:", error)
       setLoading(false)
-    })
-
-    return () => unsubscribe()
+      return () => {}
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
+    if (!isFirebaseInitialized()) {
+      setError("Firebase não está inicializado. Não é possível fazer login.")
+      return
+    }
+
     try {
       setError(null)
       setLoading(true)
@@ -64,6 +81,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = async () => {
+    if (!isFirebaseInitialized()) {
+      return
+    }
+
     try {
       await signOut(auth)
     } catch (err: any) {

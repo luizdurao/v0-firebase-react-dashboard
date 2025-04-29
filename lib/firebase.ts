@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app"
+import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth } from "firebase/auth"
 import { getFirestore, doc, setDoc, updateDoc, getDoc } from "firebase/firestore"
 import { statsData, regionData, hospitalData } from "./seed-data"
@@ -6,13 +6,13 @@ import { seedRegionalMapData } from "./regional-map-data"
 
 // Configuração do Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyDHJL2Qxl3pIlUfIzWs7hMdz6KFIrPaBPE",
-  authDomain: "projetocnsaude.firebaseapp.com",
-  projectId: "projetocnsaude",
-  storageBucket: "projetocnsaude.firebasestorage.app",
-  messagingSenderId: "814294290260",
-  appId: "1:814294290260:web:a79eeac3d2829bed1102c1",
-  measurementId: "G-Q0KV8TFJNQ",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "projetocnsaude.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-Q0KV8TFJNQ",
 }
 
 // Inicializar Firebase com tratamento de erros
@@ -21,29 +21,53 @@ let app,
   db,
   firebaseInitialized = false
 
+// Criar objetos mock para fallback
+const mockAuth = {
+  onAuthStateChanged: (callback) => {
+    callback(null)
+    return () => {}
+  },
+  signInWithEmailAndPassword: () => Promise.reject(new Error("Firebase Auth não disponível")),
+  signOut: () => Promise.resolve(),
+  currentUser: null,
+}
+
+const mockDb = {
+  collection: () => ({
+    getDocs: () => Promise.resolve({ empty: true, docs: [] }),
+  }),
+  doc: () => ({
+    get: () => Promise.resolve({ exists: false, data: () => ({}) }),
+    set: () => Promise.resolve(),
+    update: () => Promise.resolve(),
+  }),
+}
+
 try {
-  app = initializeApp(firebaseConfig)
+  // Verificar se já existe uma instância do Firebase
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig)
+  } else {
+    app = getApp()
+  }
+
+  // Inicializar serviços
   auth = getAuth(app)
   db = getFirestore(app)
-  firebaseInitialized = true
-  console.log("Firebase inicializado com sucesso")
+
+  // Verificar se os serviços foram inicializados corretamente
+  if (auth && db) {
+    firebaseInitialized = true
+    console.log("Firebase inicializado com sucesso")
+  } else {
+    console.error("Erro ao inicializar serviços do Firebase")
+  }
 } catch (error) {
   console.error("Erro ao inicializar Firebase:", error)
-  // Criar objetos mock para fallback
-  app = {} as any
-  auth = {
-    onAuthStateChanged: (callback: any) => {
-      callback(null)
-      return () => {}
-    },
-    signInAnonymously: () => Promise.reject(new Error("Firebase Auth não disponível")),
-    signOut: () => Promise.resolve(),
-  } as any
-  db = {
-    collection: () => ({
-      getDocs: () => Promise.resolve({ empty: true, docs: [] }),
-    }),
-  } as any
+  // Usar objetos mock para fallback
+  app = null
+  auth = mockAuth
+  db = mockDb
 }
 
 // Exportar os serviços do Firebase

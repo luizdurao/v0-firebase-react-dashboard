@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { RefreshCw } from "lucide-react"
 
 // Define regions for filtering
 const regions = [
@@ -63,6 +65,14 @@ export default function MapPage() {
     } else {
       setSelectedRegions(regions.map((r) => r.id))
     }
+  }
+
+  // Reset filters
+  const resetFilters = () => {
+    setSelectedRegions(regions.map((r) => r.id))
+    setFilterType("none")
+    setFilterValue(0)
+    setSelectedRegion("all")
   }
 
   // Apply filters to the data
@@ -134,8 +144,14 @@ export default function MapPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               {/* Filter Controls */}
-              <div className="bg-white p-4 rounded-lg shadow-sm mb-4">
-                <h2 className="text-lg font-medium mb-3">Filtrar Regiões</h2>
+              <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border">
+                <div className="flex justify-between items-center mb-3">
+                  <h2 className="text-lg font-medium">Filtrar Regiões</h2>
+                  <Button variant="outline" size="sm" onClick={resetFilters} className="hover:bg-gray-100">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Resetar Filtros
+                  </Button>
+                </div>
 
                 {/* Region Filter */}
                 <div className="mb-4">

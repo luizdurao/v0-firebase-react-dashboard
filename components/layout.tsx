@@ -6,20 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth, isFirebaseInitialized } from "@/lib/firebase"
-import {
-  Loader2,
-  BarChart2,
-  Map,
-  Settings,
-  LogOut,
-  AlertTriangle,
-  Globe,
-  Building2,
-  Database,
-  Lock,
-  X,
-  Menu,
-} from "lucide-react"
+import { Loader2, BarChart2, Map, LogOut, AlertTriangle, Globe, Building2, Database, Lock, X, Menu } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AuthProvider, useAuth } from "@/contexts/auth-context"
 
@@ -38,19 +25,26 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
       return () => {}
     }
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        setLoading(false)
-      },
-      (error) => {
-        console.error("Erro de alteração de estado de autenticação:", error)
-        setAuthError(`Erro de autenticação: ${error.message}`)
-        setLoading(false)
-      },
-    )
+    try {
+      const unsubscribe = onAuthStateChanged(
+        auth,
+        (user) => {
+          setLoading(false)
+        },
+        (error) => {
+          console.error("Erro de alteração de estado de autenticação:", error)
+          setAuthError(`Erro de autenticação: ${error.message}`)
+          setLoading(false)
+        },
+      )
 
-    return () => unsubscribe()
+      return () => unsubscribe()
+    } catch (error) {
+      console.error("Erro ao configurar listener de autenticação:", error)
+      setAuthError(`Erro ao configurar autenticação: ${error instanceof Error ? error.message : String(error)}`)
+      setLoading(false)
+      return () => {}
+    }
   }, [])
 
   const handleSignOut = async () => {
@@ -82,18 +76,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   const navigationLinks = [
-    { href: "/", icon: <BarChart2 className="h-5 w-5 text-gray-500" />, label: "Dashboard" },
-    { href: "/regions", icon: <Globe className="h-5 w-5 text-gray-500" />, label: "Regiões" },
-    { href: "/hospitals", icon: <Building2 className="h-5 w-5 text-gray-500" />, label: "Hospitais" },
-    { href: "/map", icon: <Map className="h-5 w-5 text-gray-500" />, label: "Mapa Regional" },
-    { href: "/settings", icon: <Settings className="h-5 w-5 text-gray-500" />, label: "Configurações" },
+    { href: "/", icon: <BarChart2 className="h-5 w-5" />, label: "Dashboard" },
+    { href: "/regions", icon: <Globe className="h-5 w-5" />, label: "Regiões" },
+    { href: "/hospitals", icon: <Building2 className="h-5 w-5" />, label: "Hospitais" },
+    { href: "/map", icon: <Map className="h-5 w-5" />, label: "Mapa Regional" },
   ]
 
   // Add admin-only links
   if (isAdmin) {
     navigationLinks.push({
       href: "/external-db",
-      icon: <Database className="h-5 w-5 text-gray-500" />,
+      icon: <Database className="h-5 w-5" />,
       label: "Banco Externo",
     })
   }
@@ -102,7 +95,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   if (!user) {
     navigationLinks.push({
       href: "/admin",
-      icon: <Lock className="h-5 w-5 text-gray-500" />,
+      icon: <Lock className="h-5 w-5" />,
       label: "Área Administrativa",
     })
   }
@@ -122,7 +115,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 href={link.href}
                 className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               >
-                <span className="mr-3">{link.icon}</span>
+                <span className="mr-3 text-gray-500">{link.icon}</span>
                 {link.label}
               </a>
             ))}
@@ -146,21 +139,25 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header and menu */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="bg-white shadow md:hidden">
+        <header className="bg-white shadow">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-bold text-primary">Dashboard CN Saúde</h1>
-            <button
-              className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600"
-              onClick={toggleMobileMenu}
-              aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
+            <h1 className="text-lg font-bold text-primary md:hidden">Dashboard CN Saúde</h1>
+
+            <div className="flex items-center gap-2">
+              {/* Mobile Menu Button */}
+              <button
+                className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600 md:hidden"
+                onClick={toggleMobileMenu}
+                aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+            </div>
           </div>
 
           {/* Mobile Navigation Menu */}
           {mobileMenuOpen && (
-            <div className="border-t bg-white">
+            <div className="border-t bg-white md:hidden">
               <nav className="flex flex-col p-4">
                 <div className="space-y-2">
                   {navigationLinks.map((link) => (
@@ -170,7 +167,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                       className="flex items-center rounded-md px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       onClick={closeMobileMenu}
                     >
-                      <span className="mr-3">{link.icon}</span>
+                      <span className="mr-3 text-gray-500">{link.icon}</span>
                       {link.label}
                     </a>
                   ))}

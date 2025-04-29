@@ -331,19 +331,19 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab }: Brazi
             />
 
             {/* Region labels */}
-            <text x="150" y="160" className="text-xs font-medium" fill="#000">
+            <text x="150" y="160" className="text-xs font-medium" fill="#000000">
               Norte
             </text>
-            <text x="280" y="180" className="text-xs font-medium" fill="#000">
+            <text x="280" y="180" className="text-xs font-medium" fill="#000000">
               Nordeste
             </text>
-            <text x="130" y="260" className="text-xs font-medium" fill="#000">
+            <text x="130" y="260" className="text-xs font-medium" fill="#000000">
               Centro-Oeste
             </text>
-            <text x="250" y="280" className="text-xs font-medium" fill="#000">
+            <text x="250" y="280" className="text-xs font-medium" fill="#000000">
               Sudeste
             </text>
-            <text x="220" y="380" className="text-xs font-medium" fill="#000">
+            <text x="220" y="380" className="text-xs font-medium" fill="#000000">
               Sul
             </text>
           </svg>
