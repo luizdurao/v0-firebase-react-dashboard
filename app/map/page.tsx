@@ -28,6 +28,7 @@ export default function MapPage() {
   const [filterType, setFilterType] = useState("none")
   const [filterValue, setFilterValue] = useState(0)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(regions.map((r) => r.id))
+  const [viewMode, setViewMode] = useState<"region" | "state">("region")
 
   // Filter thresholds based on the active tab
   const getMaxFilterValue = () => {
@@ -131,6 +132,28 @@ export default function MapPage() {
     <Layout>
       <div className="container mx-auto py-6">
         <h1 className="text-2xl font-bold mb-6">Mapa de Saúde do Brasil</h1>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 border rounded-md p-1">
+              <Button
+                variant={viewMode === "region" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("region")}
+                className="text-xs"
+              >
+                Por Região
+              </Button>
+              <Button
+                variant={viewMode === "state" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("state")}
+                className="text-xs"
+              >
+                Por Estado
+              </Button>
+            </div>
+          </div>
+        </div>
 
         <Tabs defaultValue="hospitals" value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid grid-cols-5 mb-4">
@@ -233,6 +256,7 @@ export default function MapPage() {
                   onRegionSelect={setSelectedRegion}
                   data={filteredData}
                   activeTab="hospitals"
+                  viewMode={viewMode}
                 />
               </TabsContent>
 
@@ -242,6 +266,7 @@ export default function MapPage() {
                   onRegionSelect={setSelectedRegion}
                   data={filteredData}
                   activeTab="doctors"
+                  viewMode={viewMode}
                 />
               </TabsContent>
 
@@ -251,6 +276,7 @@ export default function MapPage() {
                   onRegionSelect={setSelectedRegion}
                   data={filteredData}
                   activeTab="beds"
+                  viewMode={viewMode}
                 />
               </TabsContent>
 
@@ -260,6 +286,7 @@ export default function MapPage() {
                   onRegionSelect={setSelectedRegion}
                   data={filteredData}
                   activeTab="equipment"
+                  viewMode={viewMode}
                 />
               </TabsContent>
 
@@ -269,6 +296,7 @@ export default function MapPage() {
                   onRegionSelect={setSelectedRegion}
                   data={filteredData}
                   activeTab="access"
+                  viewMode={viewMode}
                 />
               </TabsContent>
             </div>
