@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps"
 import { Tooltip } from "react-tooltip"
+import { stateData } from "@/lib/state-map-data"
 
 // GeoJSON for Brazil with states
 const BRAZIL_GEO_URL =
@@ -57,46 +58,6 @@ const regions = [
   { id: "south", name: "Sul", color: "#8884D8" },
 ]
 
-// Dados dos estados com cores
-const states = [
-  // Norte
-  { id: "AC", name: "Acre", region: "north", color: "#0088FE" },
-  { id: "AM", name: "Amazonas", region: "north", color: "#0088FE" },
-  { id: "AP", name: "Amapá", region: "north", color: "#0088FE" },
-  { id: "PA", name: "Pará", region: "north", color: "#0088FE" },
-  { id: "RO", name: "Rondônia", region: "north", color: "#0088FE" },
-  { id: "RR", name: "Roraima", region: "north", color: "#0088FE" },
-  { id: "TO", name: "Tocantins", region: "north", color: "#0088FE" },
-
-  // Nordeste
-  { id: "AL", name: "Alagoas", region: "northeast", color: "#00C49F" },
-  { id: "BA", name: "Bahia", region: "northeast", color: "#00C49F" },
-  { id: "CE", name: "Ceará", region: "northeast", color: "#00C49F" },
-  { id: "MA", name: "Maranhão", region: "northeast", color: "#00C49F" },
-  { id: "PB", name: "Paraíba", region: "northeast", color: "#00C49F" },
-  { id: "PE", name: "Pernambuco", region: "northeast", color: "#00C49F" },
-  { id: "PI", name: "Piauí", region: "northeast", color: "#00C49F" },
-  { id: "RN", name: "Rio Grande do Norte", region: "northeast", color: "#00C49F" },
-  { id: "SE", name: "Sergipe", region: "northeast", color: "#00C49F" },
-
-  // Centro-Oeste
-  { id: "DF", name: "Distrito Federal", region: "central-west", color: "#FFBB28" },
-  { id: "GO", name: "Goiás", region: "central-west", color: "#FFBB28" },
-  { id: "MT", name: "Mato Grosso", region: "central-west", color: "#FFBB28" },
-  { id: "MS", name: "Mato Grosso do Sul", region: "central-west", color: "#FFBB28" },
-
-  // Sudeste
-  { id: "ES", name: "Espírito Santo", region: "southeast", color: "#FF8042" },
-  { id: "MG", name: "Minas Gerais", region: "southeast", color: "#FF8042" },
-  { id: "RJ", name: "Rio de Janeiro", region: "southeast", color: "#FF8042" },
-  { id: "SP", name: "São Paulo", region: "southeast", color: "#FF8042" },
-
-  // Sul
-  { id: "PR", name: "Paraná", region: "south", color: "#8884D8" },
-  { id: "RS", name: "Rio Grande do Sul", region: "south", color: "#8884D8" },
-  { id: "SC", name: "Santa Catarina", region: "south", color: "#8884D8" },
-]
-
 interface BrazilRsmMapProps {
   selectedRegion: string
   onRegionSelect: (regionId: string) => void
@@ -137,47 +98,125 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
   }, [])
 
   // Obter valor para exibir com base na aba ativa
-  const getDisplayValue = (regionId) => {
-    const regionData = data.find((r) => r.id === regionId)
-    if (!regionData) return 0
+  const getDisplayValue = (regionId, stateId = null) => {
+    if (viewMode === "state" && stateId) {
+      const state = stateData.find((s) => s.id === stateId)
+      if (!state) return 0
 
-    switch (activeTab) {
-      case "hospitals":
-        return regionData.hospitals || regionData.healthMetrics?.hospitals?.total || 0
-      case "doctors":
-        return regionData.doctors || regionData.healthMetrics?.doctors?.total || 0
-      case "beds":
-        return regionData.beds || regionData.healthMetrics?.beds?.total || 0
-      case "equipment":
-        return regionData.medicalEquipment?.mri || 0
-      case "access":
-        return regionData.urbanAccessIndex || regionData.healthMetrics?.access?.urban || 0
-      default:
-        return 1
+      switch (activeTab) {
+        case "hospitals":
+          return state.hospitals || 0
+        case "doctors":
+          return state.doctors || 0
+        case "beds":
+          return state.beds || 0
+        case "equipment":
+          return state.medicalEquipment?.mri || 0
+        case "access":
+          return state.urbanAccessIndex || 0
+        default:
+          return 0
+      }
+    } else {
+      const regionData = data.find((r) => r.id === regionId)
+      if (!regionData) return 0
+
+      switch (activeTab) {
+        case "hospitals":
+          return regionData.hospitals || regionData.healthMetrics?.hospitals?.total || 0
+        case "doctors":
+          return regionData.doctors || regionData.healthMetrics?.doctors?.total || 0
+        case "beds":
+          return regionData.beds || regionData.healthMetrics?.beds?.total || 0
+        case "equipment":
+          return regionData.medicalEquipment?.mri || 0
+        case "access":
+          return regionData.urbanAccessIndex || regionData.healthMetrics?.access?.urban || 0
+        default:
+          return 0
+      }
     }
+  }
+
+  // Obter valor máximo para o tipo de dado atual
+  const getMaxValue = () => {
+    if (viewMode === "state") {
+      switch (activeTab) {
+        case "hospitals":
+          return Math.max(...stateData.map((s) => s.hospitals || 0))
+        case "doctors":
+          return Math.max(...stateData.map((s) => s.doctors || 0))
+        case "beds":
+          return Math.max(...stateData.map((s) => s.beds || 0))
+        case "equipment":
+          return Math.max(...stateData.map((s) => s.medicalEquipment?.mri || 0))
+        case "access":
+          return Math.max(...stateData.map((s) => s.urbanAccessIndex || 0))
+        default:
+          return 1
+      }
+    } else {
+      switch (activeTab) {
+        case "hospitals":
+          return Math.max(...data.map((r) => r.hospitals || 0))
+        case "doctors":
+          return Math.max(...data.map((r) => r.doctors || 0))
+        case "beds":
+          return Math.max(...data.map((r) => r.beds || 0))
+        case "equipment":
+          return Math.max(...data.map((r) => r.medicalEquipment?.mri || 0))
+        case "access":
+          return Math.max(...data.map((r) => r.urbanAccessIndex || 0))
+        default:
+          return 1
+      }
+    }
+  }
+
+  // Calcular a intensidade da cor com base no valor
+  const getColorIntensity = (value, maxValue) => {
+    if (!value || !maxValue) return 0.3
+    const intensity = Math.min(value / maxValue, 1)
+    return 0.3 + intensity * 0.7 // Varia de 30% a 100% de intensidade
   }
 
   // Obter cor da região ou estado com base na seleção e hover
   const getRegionColor = (regionId, stateId = null) => {
     if (viewMode === "state" && stateId) {
       // Modo de visualização por estado
-      const state = states.find((s) => s.id === stateId)
+      const state = stateData.find((s) => s.id === stateId)
       if (!state) return "#cccccc"
 
       // Verificar se a região do estado está nos dados filtrados
       const isInFilteredData = data.some((r) => r.id === state.region)
       if (!isInFilteredData) return "#e5e5e5" // Light gray for filtered out states
 
+      const region = regions.find((r) => r.id === state.region)
+      if (!region) return "#cccccc"
+
       const isHovered = hoveredState === stateId
       const isSelected = selectedState === stateId
 
-      if (isHovered) {
-        return state.color // Cor mais intensa no hover
-      } else if (isSelected) {
-        return state.color
+      // Obter valor máximo para o tipo de dado atual
+      const maxValue = getMaxValue()
+
+      // Obter valor do estado atual
+      const value = getDisplayValue(null, stateId)
+
+      // Calcular intensidade da cor
+      const intensity = getColorIntensity(value, maxValue)
+
+      // Aplicar intensidade à cor base da região
+      const baseColor = region.color
+
+      if (isHovered || isSelected) {
+        return baseColor // Cor completa quando hover ou selecionado
       } else {
-        // Versão mais clara da cor quando não selecionada
-        return `${state.color}80` // 50% de opacidade
+        // Ajustar a opacidade com base no valor relativo
+        const r = Number.parseInt(baseColor.slice(1, 3), 16)
+        const g = Number.parseInt(baseColor.slice(3, 5), 16)
+        const b = Number.parseInt(baseColor.slice(5, 7), 16)
+        return `rgba(${r}, ${g}, ${b}, ${intensity})`
       }
     } else {
       // Modo de visualização por região
@@ -226,36 +265,48 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
   const generateTooltipContent = (regionId, stateId = null) => {
     if (viewMode === "state" && stateId) {
       // Modo de visualização por estado
-      const state = states.find((s) => s.id === stateId)
+      const state = stateData.find((s) => s.id === stateId)
       if (!state) return "Dados não disponíveis"
 
-      const regionData = data.find((r) => r.id === state.region)
-      if (!regionData) return `${state.name}: Sem dados disponíveis`
+      const region = regions.find((r) => r.id === state.region)
+      const regionName = region ? region.name : state.region
 
-      // Encontrar dados do estado nas distribuições da região
-      let stateHospitals = "N/A"
-      let stateDoctors = "N/A"
+      // Obter valor específico para a aba ativa
+      let specificValue = "N/A"
+      let specificLabel = ""
 
-      if (regionData.healthMetrics?.hospitals?.distribution) {
-        const hospitalData = regionData.healthMetrics.hospitals.distribution.find((d) => d.state === stateId)
-        if (hospitalData) stateHospitals = hospitalData.count.toLocaleString()
-      }
-
-      if (regionData.healthMetrics?.doctors?.distribution) {
-        const doctorData = regionData.healthMetrics.doctors.distribution.find((d) => d.state === stateId)
-        if (doctorData) stateDoctors = doctorData.count.toLocaleString()
+      switch (activeTab) {
+        case "hospitals":
+          specificValue = state.hospitals.toLocaleString()
+          specificLabel = "Hospitais"
+          break
+        case "doctors":
+          specificValue = state.doctors.toLocaleString()
+          specificLabel = "Médicos"
+          break
+        case "beds":
+          specificValue = state.beds.toLocaleString()
+          specificLabel = "Leitos"
+          break
+        case "equipment":
+          specificValue = state.medicalEquipment.mri.toLocaleString()
+          specificLabel = "Equipamentos de RM"
+          break
+        case "access":
+          specificValue = `${state.urbanAccessIndex.toFixed(1)}%`
+          specificLabel = "Acesso Urbano"
+          break
       }
 
       return `
         <div class="p-2">
           <div class="text-lg font-bold mb-1">${state.name}</div>
+          <div class="text-sm text-gray-500 mb-2">Região: ${regionName}</div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-            <div class="font-medium">Hospitais:</div>
-            <div>${stateHospitals}</div>
-            <div class="font-medium">Médicos:</div>
-            <div>${stateDoctors}</div>
-            <div class="font-medium">Região:</div>
-            <div>${regions.find((r) => r.id === state.region)?.name || state.region}</div>
+            <div class="font-medium">${specificLabel}:</div>
+            <div class="font-bold">${specificValue}</div>
+            <div class="font-medium">População:</div>
+            <div>${state.population.toLocaleString()}</div>
           </div>
         </div>
       `
@@ -267,27 +318,41 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
       const regionData = data.find((r) => r.id === regionId)
       if (!regionData) return `${region.name}: Sem dados disponíveis`
 
-      const hospitals = regionData.hospitals || regionData.healthMetrics?.hospitals?.total || "N/A"
-      const doctors =
-        regionData.doctors?.toLocaleString() || regionData.healthMetrics?.doctors?.total?.toLocaleString() || "N/A"
-      const beds = regionData.beds?.toLocaleString() || regionData.healthMetrics?.beds?.total?.toLocaleString() || "N/A"
-      const urbanAccess = regionData.urbanAccessIndex || regionData.healthMetrics?.access?.urban || "N/A"
-      const ruralAccess = regionData.ruralAccessIndex || regionData.healthMetrics?.access?.rural || "N/A"
+      // Obter valor específico para a aba ativa
+      let specificValue = "N/A"
+      let specificLabel = ""
+
+      switch (activeTab) {
+        case "hospitals":
+          specificValue = regionData.hospitals.toLocaleString()
+          specificLabel = "Hospitais"
+          break
+        case "doctors":
+          specificValue = regionData.doctors.toLocaleString()
+          specificLabel = "Médicos"
+          break
+        case "beds":
+          specificValue = regionData.beds.toLocaleString()
+          specificLabel = "Leitos"
+          break
+        case "equipment":
+          specificValue = regionData.medicalEquipment?.mri.toLocaleString() || "N/A"
+          specificLabel = "Equipamentos de RM"
+          break
+        case "access":
+          specificValue = `${regionData.urbanAccessIndex.toFixed(1)}%`
+          specificLabel = "Acesso Urbano"
+          break
+      }
 
       return `
         <div class="p-2">
           <div class="text-lg font-bold mb-1">${region.name}</div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1">
-            <div class="font-medium">Hospitais:</div>
-            <div>${hospitals}</div>
-            <div class="font-medium">Médicos:</div>
-            <div>${doctors}</div>
-            <div class="font-medium">Leitos:</div>
-            <div>${beds}</div>
-            <div class="font-medium">Acesso Urbano:</div>
-            <div>${urbanAccess}%</div>
-            <div class="font-medium">Acesso Rural:</div>
-            <div>${ruralAccess}%</div>
+            <div class="font-medium">${specificLabel}:</div>
+            <div class="font-bold">${specificValue}</div>
+            <div class="font-medium">População:</div>
+            <div>${regionData.population.toLocaleString()}</div>
           </div>
         </div>
       `
@@ -303,6 +368,37 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
       ...region,
       value: regionData ? getDisplayValue(region.id) : 0,
       formattedValue: regionData ? formatValue(getDisplayValue(region.id), activeTab) : "N/A",
+      isFiltered: isInFilteredData,
+    }
+  })
+
+  // Calcular valores por estado
+  const stateValues = stateData.map((state) => {
+    const isInFilteredData = data.some((r) => r.id === state.region)
+    let value = 0
+
+    switch (activeTab) {
+      case "hospitals":
+        value = state.hospitals
+        break
+      case "doctors":
+        value = state.doctors
+        break
+      case "beds":
+        value = state.beds
+        break
+      case "equipment":
+        value = state.medicalEquipment.mri
+        break
+      case "access":
+        value = state.urbanAccessIndex
+        break
+    }
+
+    return {
+      ...state,
+      value,
+      formattedValue: formatValue(value, activeTab),
       isFiltered: isInFilteredData,
     }
   })
@@ -339,191 +435,11 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
     )
   }
 
-  // Fallback to simplified map if GeoJSON fails to load
-  if (!geoData) {
-    return (
-      <div className="bg-white p-4 rounded-lg shadow-sm">
-        <div className="mb-4 text-center text-sm font-medium">Mapa do Brasil - Regiões (Simplificado)</div>
-
-        <div className="aspect-[4/5] w-full relative">
-          <svg viewBox="0 0 450 500" className="w-full h-full">
-            {/* Simplified region shapes */}
-            <path
-              d="M100,100 L250,120 L230,220 L80,200 Z"
-              fill={getRegionColor("north")}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              onMouseEnter={() => {
-                setHoveredRegion("north")
-                setTooltipContent(generateTooltipContent("north"))
-              }}
-              onMouseLeave={() => {
-                setHoveredRegion(null)
-                setTooltipContent("")
-              }}
-              onClick={() => onRegionSelect("north")}
-              data-tooltip-id="map-tooltip"
-              data-tooltip-html={generateTooltipContent("north")}
-            />
-            <path
-              d="M250,120 L350,150 L320,250 L230,220 Z"
-              fill={getRegionColor("northeast")}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              onMouseEnter={() => {
-                setHoveredRegion("northeast")
-                setTooltipContent(generateTooltipContent("northeast"))
-              }}
-              onMouseLeave={() => {
-                setHoveredRegion(null)
-                setTooltipContent("")
-              }}
-              onClick={() => onRegionSelect("northeast")}
-              data-tooltip-id="map-tooltip"
-              data-tooltip-html={generateTooltipContent("northeast")}
-            />
-            <path
-              d="M80,200 L230,220 L200,320 L50,300 Z"
-              fill={getRegionColor("central-west")}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              onMouseEnter={() => {
-                setHoveredRegion("central-west")
-                setTooltipContent(generateTooltipContent("central-west"))
-              }}
-              onMouseLeave={() => {
-                setHoveredRegion(null)
-                setTooltipContent("")
-              }}
-              onClick={() => onRegionSelect("central-west")}
-              data-tooltip-id="map-tooltip"
-              data-tooltip-html={generateTooltipContent("central-west")}
-            />
-            <path
-              d="M230,220 L320,250 L290,350 L200,320 Z"
-              fill={getRegionColor("southeast")}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              onMouseEnter={() => {
-                setHoveredRegion("southeast")
-                setTooltipContent(generateTooltipContent("southeast"))
-              }}
-              onMouseLeave={() => {
-                setHoveredRegion(null)
-                setTooltipContent("")
-              }}
-              onClick={() => onRegionSelect("southeast")}
-              data-tooltip-id="map-tooltip"
-              data-tooltip-html={generateTooltipContent("southeast")}
-            />
-            <path
-              d="M200,320 L290,350 L260,450 L170,420 Z"
-              fill={getRegionColor("south")}
-              stroke="#FFFFFF"
-              strokeWidth="2"
-              onMouseEnter={() => {
-                setHoveredRegion("south")
-                setTooltipContent(generateTooltipContent("south"))
-              }}
-              onMouseLeave={() => {
-                setHoveredRegion(null)
-                setTooltipContent("")
-              }}
-              onClick={() => onRegionSelect("south")}
-              data-tooltip-id="map-tooltip"
-              data-tooltip-html={generateTooltipContent("south")}
-            />
-
-            {/* Region labels */}
-            <text x="150" y="160" className="text-xs font-medium" fill="#000000">
-              Norte
-            </text>
-            <text x="280" y="180" className="text-xs font-medium" fill="#000000">
-              Nordeste
-            </text>
-            <text x="130" y="260" className="text-xs font-medium" fill="#000000">
-              Centro-Oeste
-            </text>
-            <text x="250" y="280" className="text-xs font-medium" fill="#000000">
-              Sudeste
-            </text>
-            <text x="220" y="380" className="text-xs font-medium" fill="#000000">
-              Sul
-            </text>
-          </svg>
-        </div>
-
-        <Tooltip id="map-tooltip" className="z-50" />
-
-        {/* Legenda */}
-        <div className="mt-4 p-3 border border-gray-200 rounded-lg">
-          <div className="text-sm font-medium mb-2">Legenda</div>
-          {viewMode === "state" ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-              {regions.map((region) => {
-                const isInFilteredData = data.some((r) => r.id === region.id)
-                return (
-                  <div key={region.id} className="mb-2">
-                    <div className="flex items-center mb-1">
-                      <div
-                        className="w-3 h-3 rounded-sm mr-1"
-                        style={{
-                          backgroundColor: isInFilteredData ? region.color : "#e5e5e5",
-                        }}
-                      />
-                      <div className="text-xs font-medium">{region.name}</div>
-                    </div>
-                    <div className="pl-4">
-                      {states
-                        .filter((state) => state.region === region.id)
-                        .map((state) => (
-                          <div
-                            key={state.id}
-                            className="text-xs mb-1 cursor-pointer hover:underline"
-                            onClick={() => setSelectedState(selectedState === state.id ? null : state.id)}
-                          >
-                            {state.name}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="grid grid-cols-5 gap-2">
-              {regionValues.map((region) => (
-                <div
-                  key={region.id}
-                  className={`flex flex-col items-center ${!region.isFiltered ? "opacity-50" : ""}`}
-                  onClick={() => {
-                    if (region.isFiltered) {
-                      onRegionSelect(region.id === selectedRegion ? "all" : region.id)
-                    }
-                  }}
-                  style={{ cursor: region.isFiltered ? "pointer" : "not-allowed" }}
-                >
-                  <div
-                    className="w-4 h-4 rounded-sm mb-1"
-                    style={{
-                      backgroundColor: region.isFiltered ? region.color : "#e5e5e5",
-                      opacity: selectedRegion === region.id || selectedRegion === "all" ? 1 : 0.5,
-                    }}
-                  />
-                  <div className="text-xs font-medium">{region.name}</div>
-                  <div className="text-xs">{region.formattedValue}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm">
-      <div className="mb-4 text-center text-sm font-medium">Mapa do Brasil - Regiões</div>
+      <div className="mb-4 text-center text-sm font-medium">
+        Mapa do Brasil - {viewMode === "state" ? "Estados" : "Regiões"}
+      </div>
 
       <div className="aspect-[4/5] w-full">
         <ComposableMap
@@ -550,7 +466,7 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
                       strokeWidth={0.5}
                       style={{
                         default: { outline: "none" },
-                        hover: { outline: "none", cursor: "pointer" },
+                        hover: { outline: "none", cursor: isInFilteredData ? "pointer" : "not-allowed" },
                         pressed: { outline: "none" },
                       }}
                       onMouseEnter={() => {
@@ -574,7 +490,6 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
                         if (viewMode === "state") {
                           setSelectedState(selectedState === stateCode ? null : stateCode)
                         } else {
-                          const isInFilteredData = data.some((r) => r.id === regionId)
                           if (isInFilteredData) {
                             onRegionSelect(regionId === selectedRegion ? "all" : regionId)
                           }
@@ -599,11 +514,26 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
 
       {/* Legenda */}
       <div className="mt-4 p-3 border border-gray-200 rounded-lg">
-        <div className="text-sm font-medium mb-2">Legenda</div>
+        <div className="text-sm font-medium mb-2">
+          Legenda -{" "}
+          {activeTab === "hospitals"
+            ? "Hospitais"
+            : activeTab === "doctors"
+              ? "Médicos"
+              : activeTab === "beds"
+                ? "Leitos"
+                : activeTab === "equipment"
+                  ? "Equipamentos"
+                  : "Acesso"}
+        </div>
         {viewMode === "state" ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
             {regions.map((region) => {
               const isInFilteredData = data.some((r) => r.id === region.id)
+              const regionStates = stateValues.filter((s) => s.region === region.id && s.isFiltered)
+
+              if (regionStates.length === 0) return null
+
               return (
                 <div key={region.id} className="mb-2">
                   <div className="flex items-center mb-1">
@@ -615,16 +545,19 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
                     />
                     <div className="text-xs font-medium">{region.name}</div>
                   </div>
-                  <div className="pl-4">
-                    {states
-                      .filter((state) => state.region === region.id)
+                  <div className="pl-4 max-h-32 overflow-y-auto">
+                    {regionStates
+                      .sort((a, b) => b.value - a.value) // Ordenar por valor (maior para menor)
                       .map((state) => (
                         <div
                           key={state.id}
-                          className="text-xs mb-1 cursor-pointer hover:underline"
+                          className={`text-xs mb-1 cursor-pointer hover:underline flex justify-between ${
+                            selectedState === state.id ? "font-bold" : ""
+                          }`}
                           onClick={() => setSelectedState(selectedState === state.id ? null : state.id)}
                         >
-                          {state.name}
+                          <span>{state.name}</span>
+                          <span className="text-gray-600">{state.formattedValue}</span>
                         </div>
                       ))}
                   </div>
@@ -634,31 +567,67 @@ const BrazilRsmMap = ({ selectedRegion, onRegionSelect, data, activeTab, viewMod
           </div>
         ) : (
           <div className="grid grid-cols-5 gap-2">
-            {regionValues.map((region) => (
-              <div
-                key={region.id}
-                className={`flex flex-col items-center ${!region.isFiltered ? "opacity-50" : ""}`}
-                onClick={() => {
-                  if (region.isFiltered) {
-                    onRegionSelect(region.id === selectedRegion ? "all" : region.id)
-                  }
-                }}
-                style={{ cursor: region.isFiltered ? "pointer" : "not-allowed" }}
-              >
+            {regionValues
+              .sort((a, b) => b.value - a.value) // Ordenar por valor (maior para menor)
+              .map((region) => (
                 <div
-                  className="w-4 h-4 rounded-sm mb-1"
-                  style={{
-                    backgroundColor: region.isFiltered ? region.color : "#e5e5e5",
-                    opacity: selectedRegion === region.id || selectedRegion === "all" ? 1 : 0.5,
+                  key={region.id}
+                  className={`flex flex-col items-center ${!region.isFiltered ? "opacity-50" : ""}`}
+                  onClick={() => {
+                    if (region.isFiltered) {
+                      onRegionSelect(region.id === selectedRegion ? "all" : region.id)
+                    }
                   }}
-                />
-                <div className="text-xs font-medium">{region.name}</div>
-                <div className="text-xs">{region.formattedValue}</div>
-              </div>
-            ))}
+                  style={{ cursor: region.isFiltered ? "pointer" : "not-allowed" }}
+                >
+                  <div
+                    className="w-4 h-4 rounded-sm mb-1"
+                    style={{
+                      backgroundColor: region.isFiltered ? region.color : "#e5e5e5",
+                      opacity: selectedRegion === region.id || selectedRegion === "all" ? 1 : 0.5,
+                    }}
+                  />
+                  <div className="text-xs font-medium">{region.name}</div>
+                  <div className="text-xs">{region.formattedValue}</div>
+                </div>
+              ))}
           </div>
         )}
       </div>
+
+      {/* Detalhes do estado selecionado */}
+      {viewMode === "state" && selectedState && (
+        <div className="mt-4 p-3 border border-gray-200 rounded-lg">
+          <div className="text-sm font-medium mb-2">Detalhes do Estado</div>
+          {(() => {
+            const state = stateData.find((s) => s.id === selectedState)
+            if (!state) return <div className="text-xs">Estado não encontrado</div>
+
+            return (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="text-xs font-medium">Nome:</div>
+                <div className="text-xs">{state.name}</div>
+                <div className="text-xs font-medium">Região:</div>
+                <div className="text-xs">{regions.find((r) => r.id === state.region)?.name}</div>
+                <div className="text-xs font-medium">Hospitais:</div>
+                <div className="text-xs">{state.hospitals.toLocaleString()}</div>
+                <div className="text-xs font-medium">Médicos:</div>
+                <div className="text-xs">{state.doctors.toLocaleString()}</div>
+                <div className="text-xs font-medium">Leitos:</div>
+                <div className="text-xs">{state.beds.toLocaleString()}</div>
+                <div className="text-xs font-medium">Equipamentos de RM:</div>
+                <div className="text-xs">{state.medicalEquipment.mri.toLocaleString()}</div>
+                <div className="text-xs font-medium">Acesso Urbano:</div>
+                <div className="text-xs">{state.urbanAccessIndex.toFixed(1)}%</div>
+                <div className="text-xs font-medium">Acesso Rural:</div>
+                <div className="text-xs">{state.ruralAccessIndex.toFixed(1)}%</div>
+                <div className="text-xs font-medium">População:</div>
+                <div className="text-xs">{state.population.toLocaleString()}</div>
+              </div>
+            )
+          })()}
+        </div>
+      )}
     </div>
   )
 }
