@@ -1,8 +1,9 @@
 "use client"
-import { useState, useEffect } from "react"
+
+import { useState } from "react"
 import { Tooltip } from "react-tooltip"
 
-// Definição das regiões do Brasil
+// Definição das regiões do Brasil com cores e estados
 const regions = [
   {
     id: "north",
@@ -43,24 +44,8 @@ interface BrazilMapProps {
   activeTab: string
 }
 
-const BrazilMap = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMapProps) => {
+const BrazilMapRealistic = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMapProps) => {
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null)
-  const [mapSize, setMapSize] = useState({ width: 800, height: 800 })
-
-  // Ajustar tamanho do mapa para dispositivos móveis
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) {
-        setMapSize({ width: 400, height: 400 })
-      } else {
-        setMapSize({ width: 800, height: 800 })
-      }
-    }
-
-    handleResize()
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
 
   // Obter valor para exibir no tooltip com base na aba ativa
   const getTooltipContent = (regionId) => {
@@ -133,6 +118,64 @@ const BrazilMap = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMa
     }
   }
 
+  // Calcular intensidade da cor com base no valor
+  const getColorIntensity = (regionId) => {
+    const regionData = data.find((r) => r.id === regionId)
+    if (!regionData) return 0.3
+
+    const max = getMaxValue()
+    if (max === 0) return 0.5
+
+    let value = 0
+    switch (activeTab) {
+      case "hospitals":
+        value = regionData.hospitals || regionData.healthMetrics?.hospitals?.total || 0
+        break
+      case "doctors":
+        value = regionData.doctors || regionData.healthMetrics?.doctors?.total || 0
+        break
+      case "beds":
+        value = regionData.beds || regionData.healthMetrics?.beds?.total || 0
+        break
+      case "equipment":
+        value = regionData.medicalEquipment?.mri || 0
+        break
+      case "access":
+        value = regionData.urbanAccessIndex || regionData.healthMetrics?.access?.urban || 0
+        break
+    }
+
+    // Retorna um valor entre 0.3 e 1.0 baseado na proporção do valor em relação ao máximo
+    return 0.3 + (value / max) * 0.7
+  }
+
+  // Calcular valor máximo para a métrica atual
+  const getMaxValue = () => {
+    let max = 0
+    data.forEach((region) => {
+      let value = 0
+      switch (activeTab) {
+        case "hospitals":
+          value = region.hospitals || region.healthMetrics?.hospitals?.total || 0
+          break
+        case "doctors":
+          value = region.doctors || region.healthMetrics?.doctors?.total || 0
+          break
+        case "beds":
+          value = region.beds || region.healthMetrics?.beds?.total || 0
+          break
+        case "equipment":
+          value = region.medicalEquipment?.mri || 0
+          break
+        case "access":
+          value = region.urbanAccessIndex || region.healthMetrics?.access?.urban || 0
+          break
+      }
+      if (value > max) max = value
+    })
+    return max
+  }
+
   // Obter título da legenda com base na aba ativa
   const getLegendTitle = () => {
     switch (activeTab) {
@@ -154,219 +197,247 @@ const BrazilMap = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMa
   return (
     <div className="relative">
       <svg
-        viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
+        viewBox="0 0 500 600"
         className="w-full h-auto max-h-[500px] transition-all duration-300"
         style={{ backgroundColor: "#f8f9fa", borderRadius: "8px" }}
       >
-        {/* Contorno mais detalhado do Brasil */}
-        <path
-          d="M300,70 C320,65 340,62 360,60 C400,55 440,52 480,60 
-             C520,68 560,85 600,110 C640,135 670,170 690,210 
-             C710,250 720,290 725,330 C730,370 730,410 725,450 
-             C720,490 710,530 695,570 C680,610 660,650 635,685 
-             C610,720 580,750 545,775 C510,800 470,815 430,825 
-             C390,835 350,835 310,825 C270,815 235,795 205,770 
-             C175,745 150,715 130,680 C110,645 95,605 85,565 
-             C75,525 70,485 70,445 C70,405 75,365 85,325 
-             C95,285 110,245 130,210 C150,175 175,145 205,120 
-             C235,95 270,80 300,70 Z"
-          fill="none"
-          stroke="#000000"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        {/* Mapa do Brasil com regiões mais realistas */}
 
-        {/* Norte - Forma mais detalhada */}
+        {/* Norte - Forma mais realista */}
         <path
-          d="M300,150 C320,140 345,135 370,130 C395,125 420,122 445,125 
-             C470,128 495,135 515,150 C535,165 550,185 560,210 
-             C570,235 575,265 575,295 C575,325 570,355 560,380 
-             C550,405 535,425 515,440 C495,455 470,465 445,470 
-             C420,475 395,475 370,470 C345,465 320,455 300,440 
-             C280,425 265,405 255,380 C245,355 240,325 240,295 
-             C240,265 245,235 255,210 C265,185 280,165 300,150 Z"
+          d="M120,100 C140,80 170,70 200,65 C230,60 260,60 290,70 
+             C320,80 345,95 360,120 C375,145 380,175 375,205 
+             C370,235 355,260 330,280 C305,300 275,310 240,310 
+             C205,310 175,300 150,280 C125,260 110,235 105,205 
+             C100,175 105,145 120,120 C135,95 155,80 180,70 Z"
           fill={getRegionColor("north")}
+          fillOpacity={getColorIntensity("north")}
           stroke="#FFFFFF"
-          strokeWidth="3"
+          strokeWidth="2"
           onClick={() => onRegionSelect("north")}
           onMouseEnter={() => setHoveredRegion("north")}
           onMouseLeave={() => setHoveredRegion(null)}
           data-tooltip-id="tooltip-north"
           data-tooltip-html={getTooltipContent("north")}
-          style={{ cursor: "pointer", transition: "fill 0.3s ease" }}
+          style={{ cursor: "pointer", transition: "fill 0.3s ease, fill-opacity 0.3s ease" }}
           className="hover:opacity-90 active:opacity-80"
         />
         <text
-          x="405"
-          y="280"
-          fill="#FFFFFF"
+          x="240"
+          y="180"
+          fill="#000000"
           fontWeight="bold"
-          fontSize="20"
+          fontSize="16"
           textAnchor="middle"
-          className="drop-shadow-md"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
         >
           Norte
         </text>
-        <text x="405" y="310" fill="#FFFFFF" fontSize="18" textAnchor="middle" className="drop-shadow-md">
+        <text
+          x="240"
+          y="205"
+          fill="#000000"
+          fontSize="14"
+          textAnchor="middle"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+        >
           {getDisplayValue("north")}
         </text>
 
-        {/* Nordeste - Forma mais detalhada */}
+        {/* Nordeste - Forma mais realista */}
         <path
-          d="M515,150 C535,145 555,145 575,150 C595,155 615,165 630,180 
-             C645,195 655,215 660,235 C665,255 665,275 660,295 
-             C655,315 645,335 630,350 C615,365 595,375 575,380 
-             C555,385 535,385 515,380 C495,375 475,365 460,350 
-             C445,335 435,315 430,295 C425,275 425,255 430,235 
-             C435,215 445,195 460,180 C475,165 495,155 515,150 Z"
+          d="M330,280 C345,270 362,265 380,265 C398,265 415,270 430,280 
+             C445,290 455,305 460,325 C465,345 465,365 460,385 
+             C455,405 445,420 430,430 C415,440 398,445 380,445 
+             C362,445 345,440 330,430 C315,420 305,405 300,385 
+             C295,365 295,345 300,325 C305,305 315,290 330,280 Z"
           fill={getRegionColor("northeast")}
+          fillOpacity={getColorIntensity("northeast")}
           stroke="#FFFFFF"
-          strokeWidth="3"
+          strokeWidth="2"
           onClick={() => onRegionSelect("northeast")}
           onMouseEnter={() => setHoveredRegion("northeast")}
           onMouseLeave={() => setHoveredRegion(null)}
           data-tooltip-id="tooltip-northeast"
           data-tooltip-html={getTooltipContent("northeast")}
-          style={{ cursor: "pointer", transition: "fill 0.3s ease" }}
+          style={{ cursor: "pointer", transition: "fill 0.3s ease, fill-opacity 0.3s ease" }}
           className="hover:opacity-90 active:opacity-80"
         />
         <text
-          x="545"
-          y="265"
-          fill="#FFFFFF"
+          x="380"
+          y="355"
+          fill="#000000"
           fontWeight="bold"
-          fontSize="20"
+          fontSize="16"
           textAnchor="middle"
-          className="drop-shadow-md"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
         >
           Nordeste
         </text>
-        <text x="545" y="295" fill="#FFFFFF" fontSize="18" textAnchor="middle" className="drop-shadow-md">
+        <text
+          x="380"
+          y="380"
+          fill="#000000"
+          fontSize="14"
+          textAnchor="middle"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+        >
           {getDisplayValue("northeast")}
         </text>
 
-        {/* Centro-Oeste - Forma mais detalhada */}
+        {/* Centro-Oeste - Forma mais realista */}
         <path
-          d="M370,470 C390,465 410,465 430,470 C450,475 470,485 485,500 
-             C500,515 510,535 515,555 C520,575 520,595 515,615 
-             C510,635 500,655 485,670 C470,685 450,695 430,700 
-             C410,705 390,705 370,700 C350,695 330,685 315,670 
-             C300,655 290,635 285,615 C280,595 280,575 285,555 
-             C290,535 300,515 315,500 C330,485 350,475 370,470 Z"
+          d="M150,280 C170,290 195,295 220,295 C245,295 270,290 290,280 
+             C310,270 325,255 335,235 C345,215 350,190 350,165 
+             C350,140 345,115 335,95 C325,75 310,60 290,50 
+             C270,40 245,35 220,35 C195,35 170,40 150,50 
+             C130,60 115,75 105,95 C95,115 90,140 90,165 
+             C90,190 95,215 105,235 C115,255 130,270 150,280 Z"
           fill={getRegionColor("central-west")}
+          fillOpacity={getColorIntensity("central-west")}
           stroke="#FFFFFF"
-          strokeWidth="3"
+          strokeWidth="2"
           onClick={() => onRegionSelect("central-west")}
           onMouseEnter={() => setHoveredRegion("central-west")}
           onMouseLeave={() => setHoveredRegion(null)}
           data-tooltip-id="tooltip-central-west"
           data-tooltip-html={getTooltipContent("central-west")}
-          style={{ cursor: "pointer", transition: "fill 0.3s ease" }}
+          style={{ cursor: "pointer", transition: "fill 0.3s ease, fill-opacity 0.3s ease" }}
           className="hover:opacity-90 active:opacity-80"
         />
         <text
-          x="400"
-          y="585"
-          fill="#FFFFFF"
+          x="220"
+          y="350"
+          fill="#000000"
           fontWeight="bold"
-          fontSize="20"
+          fontSize="16"
           textAnchor="middle"
-          className="drop-shadow-md"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
         >
           Centro-Oeste
         </text>
-        <text x="400" y="615" fill="#FFFFFF" fontSize="18" textAnchor="middle" className="drop-shadow-md">
+        <text
+          x="220"
+          y="375"
+          fill="#000000"
+          fontSize="14"
+          textAnchor="middle"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+        >
           {getDisplayValue("central-west")}
         </text>
 
-        {/* Sudeste - Forma mais detalhada */}
+        {/* Sudeste - Forma mais realista */}
         <path
-          d="M485,500 C505,495 525,495 545,500 C565,505 585,515 600,530 
-             C615,545 625,565 630,585 C635,605 635,625 630,645 
-             C625,665 615,685 600,700 C585,715 565,725 545,730 
-             C525,735 505,735 485,730 C465,725 445,715 430,700 
-             C415,685 405,665 400,645 C395,625 395,605 400,585 
-             C405,565 415,545 430,530 C445,515 465,505 485,500 Z"
+          d="M300,385 C315,375 332,370 350,370 C368,370 385,375 400,385 
+             C415,395 425,410 430,430 C435,450 435,470 430,490 
+             C425,510 415,525 400,535 C385,545 368,550 350,550 
+             C332,550 315,545 300,535 C285,525 275,510 270,490 
+             C265,470 265,450 270,430 C275,410 285,395 300,385 Z"
           fill={getRegionColor("southeast")}
+          fillOpacity={getColorIntensity("southeast")}
           stroke="#FFFFFF"
-          strokeWidth="3"
+          strokeWidth="2"
           onClick={() => onRegionSelect("southeast")}
           onMouseEnter={() => setHoveredRegion("southeast")}
           onMouseLeave={() => setHoveredRegion(null)}
           data-tooltip-id="tooltip-southeast"
           data-tooltip-html={getTooltipContent("southeast")}
-          style={{ cursor: "pointer", transition: "fill 0.3s ease" }}
+          style={{ cursor: "pointer", transition: "fill 0.3s ease, fill-opacity 0.3s ease" }}
           className="hover:opacity-90 active:opacity-80"
         />
         <text
-          x="515"
-          y="615"
-          fill="#FFFFFF"
+          x="350"
+          y="460"
+          fill="#000000"
           fontWeight="bold"
-          fontSize="20"
+          fontSize="16"
           textAnchor="middle"
-          className="drop-shadow-md"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
         >
           Sudeste
         </text>
-        <text x="515" y="645" fill="#FFFFFF" fontSize="18" textAnchor="middle" className="drop-shadow-md">
+        <text
+          x="350"
+          y="485"
+          fill="#000000"
+          fontSize="14"
+          textAnchor="middle"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+        >
           {getDisplayValue("southeast")}
         </text>
 
-        {/* Sul - Forma mais detalhada */}
+        {/* Sul - Forma mais realista */}
         <path
-          d="M430,700 C450,695 470,695 490,700 C510,705 530,715 545,730 
-             C560,745 570,765 575,785 C580,805 580,825 575,845 
-             C570,865 560,885 545,900 C530,915 510,925 490,930 
-             C470,935 450,935 430,930 C410,925 390,915 375,900 
-             C360,885 350,865 345,845 C340,825 340,805 345,785 
-             C350,765 360,745 375,730 C390,715 410,705 430,700 Z"
+          d="M270,490 C280,480 295,475 310,475 C325,475 340,480 350,490 
+             C360,500 365,515 365,530 C365,545 360,560 350,570 
+             C340,580 325,585 310,585 C295,585 280,580 270,570 
+             C260,560 255,545 255,530 C255,515 260,500 270,490 Z"
           fill={getRegionColor("south")}
+          fillOpacity={getColorIntensity("south")}
           stroke="#FFFFFF"
-          strokeWidth="3"
+          strokeWidth="2"
           onClick={() => onRegionSelect("south")}
           onMouseEnter={() => setHoveredRegion("south")}
           onMouseLeave={() => setHoveredRegion(null)}
           data-tooltip-id="tooltip-south"
           data-tooltip-html={getTooltipContent("south")}
-          style={{ cursor: "pointer", transition: "fill 0.3s ease" }}
+          style={{ cursor: "pointer", transition: "fill 0.3s ease, fill-opacity 0.3s ease" }}
           className="hover:opacity-90 active:opacity-80"
         />
         <text
-          x="460"
-          y="815"
-          fill="#FFFFFF"
+          x="310"
+          y="530"
+          fill="#000000"
           fontWeight="bold"
-          fontSize="20"
+          fontSize="16"
           textAnchor="middle"
-          className="drop-shadow-md"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
         >
           Sul
         </text>
-        <text x="460" y="845" fill="#FFFFFF" fontSize="18" textAnchor="middle" className="drop-shadow-md">
+        <text
+          x="310"
+          y="555"
+          fill="#000000"
+          fontSize="14"
+          textAnchor="middle"
+          className="drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]"
+        >
           {getDisplayValue("south")}
         </text>
 
         {/* Legenda */}
-        <rect x="600" y="700" width="180" height="140" rx="5" fill="white" fillOpacity="0.8" stroke="#ccc" />
-        <text x="690" y="725" textAnchor="middle" fontWeight="bold" fontSize="16">
+        <rect x="10" y="500" width="180" height="180" rx="5" fill="white" fillOpacity="0.8" stroke="#ccc" />
+        <text x="100" y="525" textAnchor="middle" fontWeight="bold" fontSize="16">
           {getLegendTitle()}
         </text>
 
         {regions.map((region, index) => (
           <g key={region.id}>
             <rect
-              x="620"
-              y={740 + index * 25}
+              x="30"
+              y={540 + index * 25}
               width="20"
               height="20"
               fill={region.color}
+              fillOpacity={selectedRegion === region.id || selectedRegion === "all" ? 1 : 0.5}
               rx="3"
               stroke="#fff"
               strokeWidth="1"
+              onClick={() => onRegionSelect(region.id)}
+              style={{ cursor: "pointer" }}
             />
-            <text x="650" y={755 + index * 25} dominantBaseline="middle" fontSize="14">
+            <text
+              x="60"
+              y={555 + index * 25}
+              dominantBaseline="middle"
+              fontSize="14"
+              onClick={() => onRegionSelect(region.id)}
+              style={{ cursor: "pointer" }}
+              fontWeight={selectedRegion === region.id ? "bold" : "normal"}
+            >
               {region.name}
             </text>
           </g>
@@ -387,4 +458,4 @@ const BrazilMap = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMa
   )
 }
 
-export default BrazilMap
+export default BrazilMapRealistic

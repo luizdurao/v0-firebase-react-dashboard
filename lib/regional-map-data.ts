@@ -1,85 +1,16 @@
 // Dados geográficos e métricas de saúde detalhadas para o mapa regional
 
-export const regionalMapData = {
-  // Dados para a visualização do mapa
-  regions: [
-    {
-      id: "north",
-      name: "Norte",
-      center: { lat: -3.4653, lng: -62.2159 },
-      zoom: 5,
-      color: "#0088FE",
-      states: [
-        { code: "AC", name: "Acre" },
-        { code: "AM", name: "Amazonas" },
-        { code: "AP", name: "Amapá" },
-        { code: "PA", name: "Pará" },
-        { code: "RO", name: "Rondônia" },
-        { code: "RR", name: "Roraima" },
-        { code: "TO", name: "Tocantins" },
-      ],
-    },
-    {
-      id: "northeast",
-      name: "Nordeste",
-      center: { lat: -9.6498, lng: -40.3494 },
-      zoom: 5,
-      color: "#00C49F",
-      states: [
-        { code: "AL", name: "Alagoas" },
-        { code: "BA", name: "Bahia" },
-        { code: "CE", name: "Ceará" },
-        { code: "MA", name: "Maranhão" },
-        { code: "PB", name: "Paraíba" },
-        { code: "PE", name: "Pernambuco" },
-        { code: "PI", name: "Piauí" },
-        { code: "RN", name: "Rio Grande do Norte" },
-        { code: "SE", name: "Sergipe" },
-      ],
-    },
-    {
-      id: "central-west",
-      name: "Centro-Oeste",
-      center: { lat: -15.7801, lng: -52.0702 },
-      zoom: 5,
-      color: "#FFBB28",
-      states: [
-        { code: "DF", name: "Distrito Federal" },
-        { code: "GO", name: "Goiás" },
-        { code: "MT", name: "Mato Grosso" },
-        { code: "MS", name: "Mato Grosso do Sul" },
-      ],
-    },
-    {
-      id: "southeast",
-      name: "Sudeste",
-      center: { lat: -19.9208, lng: -43.9378 },
-      zoom: 6,
-      color: "#FF8042",
-      states: [
-        { code: "ES", name: "Espírito Santo" },
-        { code: "MG", name: "Minas Gerais" },
-        { code: "RJ", name: "Rio de Janeiro" },
-        { code: "SP", name: "São Paulo" },
-      ],
-    },
-    {
-      id: "south",
-      name: "Sul",
-      center: { lat: -27.5954, lng: -51.5488 },
-      zoom: 6,
-      color: "#8884D8",
-      states: [
-        { code: "PR", name: "Paraná" },
-        { code: "RS", name: "Rio Grande do Sul" },
-        { code: "SC", name: "Santa Catarina" },
-      ],
-    },
-  ],
-
-  // Métricas de saúde detalhadas por região
-  healthMetrics: {
-    north: {
+export const regionalData = [
+  {
+    id: "north",
+    name: "Norte",
+    hospitals: 845,
+    urbanAccessIndex: 78,
+    ruralAccessIndex: 42,
+    doctors: 32500,
+    beds: 95000,
+    population: 18000000,
+    healthMetrics: {
       hospitals: {
         total: 845,
         public: 520,
@@ -135,7 +66,26 @@ export const regionalMapData = {
         populationCovered: 0.82,
       },
     },
-    northeast: {
+    medicalEquipment: {
+      mri: 85,
+      ct: 120,
+      xray: 780,
+      ultrasound: 650,
+      mammography: 95,
+      ventilators: 420,
+      dialysisMachines: 380,
+    },
+  },
+  {
+    id: "northeast",
+    name: "Nordeste",
+    hospitals: 2187,
+    urbanAccessIndex: 82,
+    ruralAccessIndex: 48,
+    doctors: 78000,
+    beds: 198000,
+    population: 57000000,
+    healthMetrics: {
       hospitals: {
         total: 2187,
         public: 1350,
@@ -197,7 +147,26 @@ export const regionalMapData = {
         populationCovered: 0.85,
       },
     },
-    "central-west": {
+    medicalEquipment: {
+      mri: 210,
+      ct: 320,
+      xray: 1850,
+      ultrasound: 1650,
+      mammography: 280,
+      ventilators: 980,
+      dialysisMachines: 850,
+    },
+  },
+  {
+    id: "central-west",
+    name: "Centro-Oeste",
+    hospitals: 912,
+    urbanAccessIndex: 88,
+    ruralAccessIndex: 56,
+    doctors: 45000,
+    beds: 82000,
+    population: 16000000,
+    healthMetrics: {
       hospitals: {
         total: 912,
         public: 480,
@@ -244,7 +213,26 @@ export const regionalMapData = {
         populationCovered: 0.89,
       },
     },
-    southeast: {
+    medicalEquipment: {
+      mri: 120,
+      ct: 180,
+      xray: 920,
+      ultrasound: 780,
+      mammography: 150,
+      ventilators: 520,
+      dialysisMachines: 420,
+    },
+  },
+  {
+    id: "southeast",
+    name: "Sudeste",
+    hospitals: 3292,
+    urbanAccessIndex: 94,
+    ruralAccessIndex: 62,
+    doctors: 185000,
+    beds: 310000,
+    population: 89000000,
+    healthMetrics: {
       hospitals: {
         total: 3292,
         public: 1650,
@@ -291,7 +279,26 @@ export const regionalMapData = {
         populationCovered: 0.95,
       },
     },
-    south: {
+    medicalEquipment: {
+      mri: 450,
+      ct: 680,
+      xray: 3200,
+      ultrasound: 2800,
+      mammography: 580,
+      ventilators: 1850,
+      dialysisMachines: 1650,
+    },
+  },
+  {
+    id: "south",
+    name: "Sul",
+    hospitals: 1221,
+    urbanAccessIndex: 92,
+    ruralAccessIndex: 58,
+    doctors: 82000,
+    beds: 154000,
+    population: 30000000,
+    healthMetrics: {
       hospitals: {
         total: 1221,
         public: 580,
@@ -335,47 +342,7 @@ export const regionalMapData = {
         populationCovered: 0.93,
       },
     },
-  },
-
-  // Dados de equipamentos médicos por região
-  medicalEquipment: {
-    north: {
-      mri: 85,
-      ct: 120,
-      xray: 780,
-      ultrasound: 650,
-      mammography: 95,
-      ventilators: 420,
-      dialysisMachines: 380,
-    },
-    northeast: {
-      mri: 210,
-      ct: 320,
-      xray: 1850,
-      ultrasound: 1650,
-      mammography: 280,
-      ventilators: 980,
-      dialysisMachines: 850,
-    },
-    "central-west": {
-      mri: 120,
-      ct: 180,
-      xray: 920,
-      ultrasound: 780,
-      mammography: 150,
-      ventilators: 520,
-      dialysisMachines: 420,
-    },
-    southeast: {
-      mri: 450,
-      ct: 680,
-      xray: 3200,
-      ultrasound: 2800,
-      mammography: 580,
-      ventilators: 1850,
-      dialysisMachines: 1650,
-    },
-    south: {
+    medicalEquipment: {
       mri: 220,
       ct: 320,
       xray: 1450,
@@ -385,101 +352,7 @@ export const regionalMapData = {
       dialysisMachines: 720,
     },
   },
-
-  // Dados de profissionais de saúde por região
-  healthcareProfessionals: {
-    north: {
-      doctors: 32500,
-      nurses: 48000,
-      technicians: 65000,
-      communityHealthWorkers: 28000,
-      specialists: {
-        cardiologists: 1850,
-        neurologists: 1200,
-        oncologists: 950,
-        pediatricians: 3800,
-        obstetricians: 2900,
-        surgeons: 2200,
-        anesthesiologists: 1800,
-        psychiatrists: 950,
-        dermatologists: 850,
-        ophthalmologists: 1100,
-      },
-    },
-    northeast: {
-      doctors: 78000,
-      nurses: 120000,
-      technicians: 165000,
-      communityHealthWorkers: 85000,
-      specialists: {
-        cardiologists: 4500,
-        neurologists: 2800,
-        oncologists: 2200,
-        pediatricians: 9500,
-        obstetricians: 7200,
-        surgeons: 5500,
-        anesthesiologists: 4200,
-        psychiatrists: 2300,
-        dermatologists: 2100,
-        ophthalmologists: 2600,
-      },
-    },
-    "central-west": {
-      doctors: 45000,
-      nurses: 68000,
-      technicians: 92000,
-      communityHealthWorkers: 38000,
-      specialists: {
-        cardiologists: 2800,
-        neurologists: 1800,
-        oncologists: 1400,
-        pediatricians: 5200,
-        obstetricians: 3800,
-        surgeons: 3200,
-        anesthesiologists: 2500,
-        psychiatrists: 1500,
-        dermatologists: 1300,
-        ophthalmologists: 1600,
-      },
-    },
-    southeast: {
-      doctors: 185000,
-      nurses: 280000,
-      technicians: 380000,
-      communityHealthWorkers: 150000,
-      specialists: {
-        cardiologists: 12500,
-        neurologists: 8500,
-        oncologists: 7200,
-        pediatricians: 21000,
-        obstetricians: 16500,
-        surgeons: 14500,
-        anesthesiologists: 11000,
-        psychiatrists: 7800,
-        dermatologists: 6500,
-        ophthalmologists: 8200,
-      },
-    },
-    south: {
-      doctors: 82000,
-      nurses: 125000,
-      technicians: 170000,
-      communityHealthWorkers: 65000,
-      specialists: {
-        cardiologists: 5800,
-        neurologists: 3900,
-        oncologists: 3200,
-        pediatricians: 9800,
-        obstetricians: 7500,
-        surgeons: 6800,
-        anesthesiologists: 5200,
-        psychiatrists: 3500,
-        dermatologists: 3100,
-        ophthalmologists: 3800,
-      },
-    },
-  },
-}
+]
 
 // Função para inicializar os dados do mapa regional no Firebase
 export async function seedRegionalMapData(db) {
@@ -488,13 +361,8 @@ export async function seedRegionalMapData(db) {
     const regionalMapCollection = db.collection("regionalMap")
 
     // Adicionar dados de regiões
-    for (const region of regionalMapData.regions) {
-      await regionalMapCollection.doc(region.id).set({
-        ...region,
-        healthMetrics: regionalMapData.healthMetrics[region.id],
-        medicalEquipment: regionalMapData.medicalEquipment[region.id],
-        healthcareProfessionals: regionalMapData.healthcareProfessionals[region.id],
-      })
+    for (const region of regionalData) {
+      await regionalMapCollection.doc(region.id).set(region)
     }
 
     console.log("Dados do mapa regional inseridos com sucesso")
