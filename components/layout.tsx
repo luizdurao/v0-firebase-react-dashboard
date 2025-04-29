@@ -10,7 +10,6 @@ import {
   Loader2,
   BarChart2,
   Map,
-  Activity,
   Settings,
   LogOut,
   AlertTriangle,
@@ -18,6 +17,8 @@ import {
   Building2,
   Database,
   Lock,
+  X,
+  Menu,
 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AuthProvider, useAuth } from "@/contexts/auth-context"
@@ -25,6 +26,7 @@ import { AuthProvider, useAuth } from "@/contexts/auth-context"
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
   const { user, isAdmin, logout } = useAuth()
 
@@ -62,6 +64,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen)
+  }
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false)
+  }
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -71,75 +81,51 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const navigationLinks = [
+    { href: "/", icon: <BarChart2 className="h-5 w-5 text-gray-500" />, label: "Dashboard" },
+    { href: "/regions", icon: <Globe className="h-5 w-5 text-gray-500" />, label: "Regiões" },
+    { href: "/hospitals", icon: <Building2 className="h-5 w-5 text-gray-500" />, label: "Hospitais" },
+    { href: "/map", icon: <Map className="h-5 w-5 text-gray-500" />, label: "Mapa Regional" },
+    { href: "/settings", icon: <Settings className="h-5 w-5 text-gray-500" />, label: "Configurações" },
+  ]
+
+  // Add admin-only links
+  if (isAdmin) {
+    navigationLinks.push({
+      href: "/external-db",
+      icon: <Database className="h-5 w-5 text-gray-500" />,
+      label: "Banco Externo",
+    })
+  }
+
+  // Add login link if not logged in
+  if (!user) {
+    navigationLinks.push({
+      href: "/admin",
+      icon: <Lock className="h-5 w-5 text-gray-500" />,
+      label: "Área Administrativa",
+    })
+  }
+
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
       <div className="hidden w-64 flex-shrink-0 flex-col bg-white shadow-md md:flex">
         <div className="flex h-16 items-center justify-center border-b">
-          <h1 className="text-xl font-bold text-primary">Saúde Brasil</h1>
+          <h1 className="text-xl font-bold text-primary">Dashboard CN Saúde</h1>
         </div>
         <nav className="flex flex-1 flex-col p-4">
           <div className="space-y-1">
-            <a
-              href="/"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <BarChart2 className="mr-3 h-5 w-5 text-gray-500" />
-              Dashboard
-            </a>
-            <a
-              href="/regions"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Globe className="mr-3 h-5 w-5 text-gray-500" />
-              Regiões
-            </a>
-            <a
-              href="/hospitals"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Building2 className="mr-3 h-5 w-5 text-gray-500" />
-              Hospitais
-            </a>
-            <a
-              href="/map"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Map className="mr-3 h-5 w-5 text-gray-500" />
-              Mapa Regional
-            </a>
-            <a
-              href="/analytics"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Activity className="mr-3 h-5 w-5 text-gray-500" />
-              Análises
-            </a>
-            {isAdmin && (
+            {navigationLinks.map((link) => (
               <a
-                href="/external-db"
+                key={link.href}
+                href={link.href}
                 className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               >
-                <Database className="mr-3 h-5 w-5 text-gray-500" />
-                Banco Externo
+                <span className="mr-3">{link.icon}</span>
+                {link.label}
               </a>
-            )}
-            <a
-              href="/settings"
-              className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            >
-              <Settings className="mr-3 h-5 w-5 text-gray-500" />
-              Configurações
-            </a>
-            {!user && (
-              <a
-                href="/admin"
-                className="flex items-center rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              >
-                <Lock className="mr-3 h-5 w-5 text-gray-500" />
-                Área Administrativa
-              </a>
-            )}
+            ))}
           </div>
         </nav>
         {isFirebaseInitialized() && user && (
@@ -158,24 +144,53 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Mobile header */}
+      {/* Mobile header and menu */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="bg-white shadow md:hidden">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-bold text-primary">Saúde Brasil</h1>
-            <button className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600">
-              <span className="sr-only">Abrir menu</span>
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            <h1 className="text-lg font-bold text-primary">Dashboard CN Saúde</h1>
+            <button
+              className="rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600"
+              onClick={toggleMobileMenu}
+              aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
+
+          {/* Mobile Navigation Menu */}
+          {mobileMenuOpen && (
+            <div className="border-t bg-white">
+              <nav className="flex flex-col p-4">
+                <div className="space-y-2">
+                  {navigationLinks.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      className="flex items-center rounded-md px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      onClick={closeMobileMenu}
+                    >
+                      <span className="mr-3">{link.icon}</span>
+                      {link.label}
+                    </a>
+                  ))}
+
+                  {isFirebaseInitialized() && user && (
+                    <button
+                      onClick={() => {
+                        handleSignOut()
+                        closeMobileMenu()
+                      }}
+                      className="flex w-full items-center rounded-md px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    >
+                      <LogOut className="mr-3 h-5 w-5 text-gray-500" />
+                      Sair
+                    </button>
+                  )}
+                </div>
+              </nav>
+            </div>
+          )}
         </header>
 
         {/* Main content */}
