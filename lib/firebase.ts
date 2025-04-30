@@ -1,8 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app"
-import { getAuth } from "firebase/auth"
 import { getFirestore, doc, setDoc, updateDoc, getDoc } from "firebase/firestore"
 import { statsData, regionData, hospitalData } from "./seed-data"
 import { seedRegionalMapData } from "./regional-map-data"
+
+// Verificar se estamos no lado do cliente
+const isBrowser = typeof window !== "undefined"
 
 // Configuração do Firebase
 const firebaseConfig = {
@@ -16,10 +18,10 @@ const firebaseConfig = {
 }
 
 // Inicializar Firebase com tratamento de erros
-let app,
-  auth,
-  db,
-  firebaseInitialized = false
+let app
+let _auth
+let _db
+let _firebaseInitialized = false
 
 // Criar objetos mock para fallback
 const mockAuth = {
@@ -43,39 +45,67 @@ const mockDb = {
   }),
 }
 
-try {
-  // Verificar se já existe uma instância do Firebase
-  if (getApps().length === 0) {
-    console.log("Inicializando Firebase com configuração:", {
-      apiKey: firebaseConfig.apiKey ? "***" + firebaseConfig.apiKey.slice(-6) : "não definido",
-      authDomain: firebaseConfig.authDomain || "não definido",
-      projectId: firebaseConfig.projectId || "não definido",
-      appId: firebaseConfig.appId ? "***" + firebaseConfig.appId.slice(-6) : "não definido",
-    })
-
-    app = initializeApp(firebaseConfig)
-  } else {
-    app = getApp()
-    console.log("Usando instância existente do Firebase")
+// Função para inicializar o Firebase
+async function initializeFirebase() {
+  if (!isBrowser) {
+    console.log("Executando no servidor, Firebase não será inicializado completamente")
+    return { auth: mockAuth, db: mockDb, initialized: false }
   }
 
-  // Inicializar serviços
-  auth = getAuth(app)
-  db = getFirestore(app)
+  try {
+    // Verificar se já existe uma instância do Firebase
+    if (getApps().length === 0) {
+      console.log("Inicializando Firebase com configuração:", {
+        apiKey: firebaseConfig.apiKey ? "***" + firebaseConfig.apiKey.slice(-6) : "não definido",
+        authDomain: firebaseConfig.authDomain || "não definido",
+        projectId: firebaseConfig.projectId || "não definido",
+        appId: firebaseConfig.appId ? "***" + firebaseConfig.appId.slice(-6) : "não definido",
+      })
 
-  // Verificar se os serviços foram inicializados corretamente
-  if (auth && db) {
-    firebaseInitialized = true
-    console.log("Firebase inicializado com sucesso")
-  } else {
-    console.error("Erro ao inicializar serviços do Firebase")
+      app = initializeApp(firebaseConfig)
+    } else {
+      app = getApp()
+      console.log("Usando instância existente do Firebase")
+    }
+
+    // Inicializar serviços (apenas no cliente)
+    // Importar dinamicamente para evitar erros no servidor
+    if (isBrowser) {
+      const { getAuth } = await import("firebase/auth")
+      _auth = getAuth(app)
+      _db = getFirestore(app)
+
+      // Verificar se os serviços foram inicializados corretamente
+      if (_auth && _db) {
+        _firebaseInitialized = true
+        console.log("Firebase inicializado com sucesso")
+      } else {
+        console.error("Erro ao inicializar serviços do Firebase")
+      }
+    }
+
+    return { auth: _auth || mockAuth, db: _db || mockDb, initialized: _firebaseInitialized }
+  } catch (error) {
+    console.error("Erro ao inicializar Firebase:", error)
+    // Usar objetos mock para fallback
+    return { auth: mockAuth, db: mockDb, initialized: false }
   }
-} catch (error) {
-  console.error("Erro ao inicializar Firebase:", error)
-  // Usar objetos mock para fallback
-  app = null
-  auth = mockAuth
-  db = mockDb
+}
+
+// Inicializar Firebase apenas no cliente
+let auth = mockAuth
+let db = mockDb
+let firebaseInitialized = false
+
+// Executar a inicialização apenas no cliente
+if (isBrowser) {
+  // Inicializar imediatamente, mas não esperar pela promessa
+  initializeFirebase().then((firebase) => {
+    auth = firebase.auth
+    db = firebase.db
+    firebaseInitialized = firebase.initialized
+    console.log("Firebase inicializado assincronamente:", firebaseInitialized)
+  })
 }
 
 // Exportar os serviços do Firebase
@@ -88,6 +118,10 @@ export function isFirebaseInitialized() {
 
 // Função para inicializar o banco de dados com os dados de exemplo
 export async function seedDatabase() {
+  if (!isFirebaseInitialized()) {
+    throw new Error("Firebase não está inicializado")
+  }
+
   try {
     // Inserir dados de estatísticas
     await setDoc(doc(db, "stats", "overall"), statsData)
@@ -118,6 +152,10 @@ export async function seedDatabase() {
 
 // Função para atualizar as estatísticas
 export async function updateStats(stats: any) {
+  if (!isFirebaseInitialized()) {
+    throw new Error("Firebase não está inicializado")
+  }
+
   try {
     await updateDoc(doc(db, "stats", "overall"), stats)
     console.log("Estatísticas atualizadas com sucesso")
@@ -130,6 +168,10 @@ export async function updateStats(stats: any) {
 
 // Função para atualizar uma região
 export async function updateRegion(regionId: string, regionData: any) {
+  if (!isFirebaseInitialized()) {
+    throw new Error("Firebase não está inicializado")
+  }
+
   try {
     await updateDoc(doc(db, "regions", regionId), regionData)
     console.log(`Região ${regionId} atualizada com sucesso`)
@@ -142,6 +184,11 @@ export async function updateRegion(regionId: string, regionData: any) {
 
 // Função para garantir que o usuário admin exista
 export async function ensureAdminUser() {
+  if (!isFirebaseInitialized()) {
+    console.warn("Firebase não inicializado. Não é possível verificar usuário admin.")
+    return
+  }
+
   try {
     // Verificar se o usuário admin padrão já existe
     const userRef = doc(db, "users", "admin")
@@ -170,12 +217,18 @@ export async function ensureAdminUser() {
 export function getFirebaseStatus() {
   return {
     initialized: firebaseInitialized,
-    config: firebaseConfig,
+    config: {
+      apiKey: firebaseConfig.apiKey ? "***" + (firebaseConfig.apiKey.slice(-6) || "") : "não definido",
+      authDomain: firebaseConfig.authDomain || "não definido",
+      projectId: firebaseConfig.projectId || "não definido",
+      appId: firebaseConfig.appId ? "***" + (firebaseConfig.appId.slice(-6) || "") : "não definido",
+    },
     envVars: {
       apiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
       authDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
       projectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
       appId: !!process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     },
+    browser: isBrowser,
   }
 }

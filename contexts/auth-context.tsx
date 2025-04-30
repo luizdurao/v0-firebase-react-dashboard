@@ -3,8 +3,21 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { auth, db, isFirebaseInitialized } from "@/lib/firebase"
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth"
 import { doc, getDoc, setDoc } from "firebase/firestore"
+import {
+  onAuthStateChanged as _onAuthStateChanged,
+  signInWithEmailAndPassword as _signInWithEmailAndPassword,
+  signOut as _signOut,
+} from "firebase/auth"
+
+// Verificar se estamos no lado do cliente
+const isBrowser = typeof window !== "undefined"
+
+type User = {
+  uid: string
+  email: string | null
+  displayName: string | null
+}
 
 type AuthContextType = {
   user: User | null
@@ -24,19 +37,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Skip if Firebase is not initialized
-    if (!isFirebaseInitialized()) {
-      console.warn("Firebase não está inicializado. Autenticação não funcionará.")
+    // Skip if not in browser or Firebase is not initialized
+    if (!isBrowser || !isFirebaseInitialized()) {
+      console.warn("Firebase não está inicializado ou executando no servidor. Autenticação não funcionará.")
       setLoading(false)
       return () => {}
     }
 
     try {
-      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      const unsubscribe = _onAuthStateChanged(auth, async (currentUser) => {
         console.log("Estado de autenticação alterado:", currentUser?.email || "Nenhum usuário")
-        setUser(currentUser)
 
         if (currentUser) {
+          // Converter para o tipo User simplificado
+          setUser({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+          })
+
           try {
             // Verificar se o usuário é um administrador
             const userDoc = await getDoc(doc(db, "users", currentUser.uid))
@@ -67,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setIsAdmin(false)
           }
         } else {
+          setUser(null)
           setIsAdmin(false)
         }
 
@@ -82,8 +102,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    if (!isFirebaseInitialized()) {
-      setError("Firebase não está inicializado. Não é possível fazer login.")
+    if (!isBrowser || !isFirebaseInitialized()) {
+      setError("Firebase não está inicializado ou executando no servidor. Não é possível fazer login.")
       return
     }
 
@@ -92,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       console.log(`Tentando login com email: ${email}`)
 
-      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await _signInWithEmailAndPassword(auth, email, password)
       console.log("Login bem-sucedido:", userCredential.user.email)
 
       // Verificar se é o primeiro login do admin padrão
@@ -135,12 +155,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = async () => {
-    if (!isFirebaseInitialized()) {
+    if (!isBrowser || !isFirebaseInitialized()) {
       return
     }
 
     try {
-      await signOut(auth)
+      await _signOut(auth)
       console.log("Logout realizado com sucesso")
     } catch (err: any) {
       console.error("Erro ao sair:", err)
