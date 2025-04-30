@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
@@ -10,17 +10,30 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, AlertTriangle, Lock } from "lucide-react"
+import { Loader2, AlertTriangle, Lock, Info } from "lucide-react"
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showTestCredentials, setShowTestCredentials] = useState(false)
   const { login, error, loading, isAdmin } = useAuth()
   const router = useRouter()
 
+  // Preencher com credenciais de teste para facilitar o desenvolvimento
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      setEmail("admin@saude.gov.br")
+      setPassword("admin123")
+    }
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    await login(email, password)
+    try {
+      await login(email, password)
+    } catch (err) {
+      console.error("Erro ao fazer login:", err)
+    }
   }
 
   if (isAdmin) {
@@ -47,9 +60,32 @@ export default function AdminLogin() {
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Erro de autenticação</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {error.includes("api-key-not-valid") && (
+                  <div className="mt-2 text-sm">
+                    <p>
+                      <strong>Solução:</strong> Verifique se a variável de ambiente NEXT_PUBLIC_FIREBASE_API_KEY está
+                      configurada corretamente.
+                    </p>
+                  </div>
+                )}
+              </AlertDescription>
             </Alert>
           )}
+
+          {showTestCredentials && (
+            <Alert className="mb-4">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Credenciais de teste</AlertTitle>
+              <AlertDescription>
+                Email: admin@saude.gov.br
+                <br />
+                Senha: admin123
+              </AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -73,12 +109,19 @@ export default function AdminLogin() {
                 required
               />
             </div>
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {loading ? "Autenticando..." : "Entrar"}
+            </Button>
           </form>
         </CardContent>
-        <CardFooter>
-          <Button onClick={handleLogin} disabled={loading} className="w-full">
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {loading ? "Autenticando..." : "Entrar"}
+        <CardFooter className="flex flex-col items-start">
+          <Button
+            variant="link"
+            className="p-0 h-auto text-sm text-muted-foreground"
+            onClick={() => setShowTestCredentials(!showTestCredentials)}
+          >
+            {showTestCredentials ? "Ocultar credenciais de teste" : "Mostrar credenciais de teste"}
           </Button>
         </CardFooter>
       </Card>

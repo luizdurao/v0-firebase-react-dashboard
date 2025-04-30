@@ -9,10 +9,10 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "projetocnsaude.firebasestorage.app",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-Q0KV8TFJNQ",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 }
 
 // Inicializar Firebase com tratamento de erros
@@ -46,9 +46,17 @@ const mockDb = {
 try {
   // Verificar se já existe uma instância do Firebase
   if (getApps().length === 0) {
+    console.log("Inicializando Firebase com configuração:", {
+      apiKey: firebaseConfig.apiKey ? "***" + firebaseConfig.apiKey.slice(-6) : "não definido",
+      authDomain: firebaseConfig.authDomain || "não definido",
+      projectId: firebaseConfig.projectId || "não definido",
+      appId: firebaseConfig.appId ? "***" + firebaseConfig.appId.slice(-6) : "não definido",
+    })
+
     app = initializeApp(firebaseConfig)
   } else {
     app = getApp()
+    console.log("Usando instância existente do Firebase")
   }
 
   // Inicializar serviços
@@ -78,79 +86,8 @@ export function isFirebaseInitialized() {
   return firebaseInitialized
 }
 
-// Funções para manipular dados no Firestore
-export async function updateStats(statsData) {
-  if (!isFirebaseInitialized()) {
-    throw new Error("Firebase não está inicializado")
-  }
-
-  try {
-    const statsRef = doc(db, "stats", "overall")
-    const statsDoc = await getDoc(statsRef)
-
-    if (statsDoc.exists()) {
-      await updateDoc(statsRef, statsData)
-    } else {
-      await setDoc(statsRef, statsData)
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("Erro ao atualizar estatísticas:", error)
-    throw error
-  }
-}
-
-export async function updateRegion(regionId, regionData) {
-  if (!isFirebaseInitialized()) {
-    throw new Error("Firebase não está inicializado")
-  }
-
-  try {
-    const regionRef = doc(db, "regions", regionId)
-    const regionDoc = await getDoc(regionRef)
-
-    if (regionDoc.exists()) {
-      await updateDoc(regionRef, regionData)
-    } else {
-      await setDoc(regionRef, { id: regionId, ...regionData })
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("Erro ao atualizar região:", error)
-    throw error
-  }
-}
-
-export async function updateHospital(hospitalId, hospitalData) {
-  if (!isFirebaseInitialized()) {
-    throw new Error("Firebase não está inicializado")
-  }
-
-  try {
-    const hospitalRef = doc(db, "hospitals", hospitalId)
-    const hospitalDoc = await getDoc(hospitalRef)
-
-    if (hospitalDoc.exists()) {
-      await updateDoc(hospitalRef, hospitalData)
-    } else {
-      await setDoc(hospitalRef, { id: hospitalId, ...hospitalData })
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error("Erro ao atualizar hospital:", error)
-    throw error
-  }
-}
-
-// Função para inicializar o banco de dados com dados de exemplo
+// Função para inicializar o banco de dados com os dados de exemplo
 export async function seedDatabase() {
-  if (!isFirebaseInitialized()) {
-    throw new Error("Firebase não está inicializado")
-  }
-
   try {
     // Inserir dados de estatísticas
     await setDoc(doc(db, "stats", "overall"), statsData)
@@ -170,10 +107,75 @@ export async function seedDatabase() {
 
     // Inserir dados do mapa regional
     await seedRegionalMapData(db)
+    console.log("Dados do mapa regional inseridos com sucesso")
 
     return { success: true, message: "Banco de dados inicializado com sucesso" }
   } catch (error) {
     console.error("Erro ao inicializar banco de dados:", error)
     throw error
+  }
+}
+
+// Função para atualizar as estatísticas
+export async function updateStats(stats: any) {
+  try {
+    await updateDoc(doc(db, "stats", "overall"), stats)
+    console.log("Estatísticas atualizadas com sucesso")
+    return { success: true, message: "Estatísticas atualizadas com sucesso" }
+  } catch (error) {
+    console.error("Erro ao atualizar estatísticas:", error)
+    throw error
+  }
+}
+
+// Função para atualizar uma região
+export async function updateRegion(regionId: string, regionData: any) {
+  try {
+    await updateDoc(doc(db, "regions", regionId), regionData)
+    console.log(`Região ${regionId} atualizada com sucesso`)
+    return { success: true, message: `Região ${regionId} atualizada com sucesso` }
+  } catch (error) {
+    console.error(`Erro ao atualizar região ${regionId}:`, error)
+    throw error
+  }
+}
+
+// Função para garantir que o usuário admin exista
+export async function ensureAdminUser() {
+  try {
+    // Verificar se o usuário admin padrão já existe
+    const userRef = doc(db, "users", "admin")
+    const userDoc = await getDoc(userRef)
+
+    if (!userDoc.exists()) {
+      // Criar o usuário admin padrão
+      await setDoc(userRef, {
+        role: "admin",
+        email: "admin@saude.gov.br",
+        createdAt: new Date(),
+      })
+      console.log("Usuário admin padrão criado com sucesso")
+      return { success: true, message: "Usuário admin padrão criado com sucesso" }
+    } else {
+      console.log("Usuário admin padrão já existe")
+      return { success: true, message: "Usuário admin padrão já existe" }
+    }
+  } catch (error) {
+    console.error("Erro ao garantir usuário admin:", error)
+    throw error
+  }
+}
+
+// Função para obter o status do Firebase
+export function getFirebaseStatus() {
+  return {
+    initialized: firebaseInitialized,
+    config: firebaseConfig,
+    envVars: {
+      apiKey: !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      appId: !!process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    },
   }
 }
