@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Layout from "@/components/layout"
 import BrazilRsmMap from "@/components/brazil-rsm-map"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,7 +12,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
-import PermissionErrorHandler from "@/components/permission-error-handler"
 
 // Define regions for filtering
 const regions = [
@@ -30,35 +29,6 @@ export default function MapPage() {
   const [filterValue, setFilterValue] = useState(0)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(regions.map((r) => r.id))
   const [viewMode, setViewMode] = useState<"region" | "state">("region")
-  const [permissionError, setPermissionError] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  // Simular carregamento de dados com tratamento de erro de permissão
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true)
-      setPermissionError(false)
-
-      try {
-        // Simular verificação de permissões
-        // Na implementação real, isso seria uma chamada ao Firestore
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Se chegou aqui, não houve erro de permissão
-        setLoading(false)
-      } catch (error: any) {
-        console.error("Erro ao carregar dados:", error)
-
-        if (error.code === "permission-denied" || error.message?.includes("permission")) {
-          setPermissionError(true)
-        }
-
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [])
 
   // Filter thresholds based on the active tab
   const getMaxFilterValue = () => {
@@ -156,41 +126,6 @@ export default function MapPage() {
     setActiveTab(value)
     // Reset filter value when changing tabs to avoid confusion
     setFilterValue(0)
-  }
-
-  // Retry loading data
-  const handleRetry = () => {
-    setPermissionError(false)
-    setLoading(true)
-
-    // Simular nova tentativa
-    setTimeout(() => {
-      setLoading(false)
-    }, 1000)
-  }
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-6">
-          <h1 className="text-2xl font-bold mb-6">Mapa de Saúde do Brasil</h1>
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-          </div>
-        </div>
-      </Layout>
-    )
-  }
-
-  if (permissionError) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-6">
-          <h1 className="text-2xl font-bold mb-6">Mapa de Saúde do Brasil</h1>
-          <PermissionErrorHandler onRetry={handleRetry} />
-        </div>
-      </Layout>
-    )
   }
 
   return (

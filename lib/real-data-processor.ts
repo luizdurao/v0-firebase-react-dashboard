@@ -1,13 +1,12 @@
-// Interface para os dados do arquivo JSON
-interface EstadoData {
-  Regiao: string
+// Interface para os dados do hospital
+interface HospitalData {
   Hospitais_Privados_2024: number
   Leitos_Privados_2024: number
-  Leitos_por_1000_hab: number
-  Localizacao: {
+  Coordenadas: {
     Latitude: number
     Longitude: number
   }
+  Regiao: string
   Distribuicao_Localizacao: {
     Capital: number
     Interior: number
@@ -35,14 +34,32 @@ interface EstadoData {
   }
 }
 
-// Dados reais completos (todos os 27 estados)
-const realHospitalData: Record<string, EstadoData> = {
-  acre: {
-    Regiao: "Norte",
+// Interface para dados processados do estado
+interface StateChartData {
+  id: string
+  name: string
+  region: string
+  hospitals: number
+  beds: number
+  bedsPerThousand: number
+  coordinates: {
+    Latitude: number
+    Longitude: number
+  }
+  locationDistribution: Array<{ name: string; value: number }>
+  populationDistribution: Array<{ name: string; value: number }>
+  hospitalSizeDistribution: Array<{ name: string; value: number }>
+  hospitalTypeDistribution: Array<{ name: string; value: number }>
+  serviceTypeDistribution: Array<{ name: string; value: number }>
+}
+
+// Dados hospitalares brasileiros embutidos
+const hospitalData: Record<string, HospitalData> = {
+  Acre: {
     Hospitais_Privados_2024: 10,
     Leitos_Privados_2024: 361,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -9.97499, Longitude: -67.8243 },
+    Coordenadas: { Latitude: -9.97499, Longitude: -67.8243 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 25.0, Interior: 75.0 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 77.9,
@@ -59,12 +76,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 56.0, Especializado: 44.0, Hospital_Dia: 0.0 },
     Tipo_Atendimento: { SUS: 56.0, Nao_SUS: 44.0 },
   },
-  alagoas: {
-    Regiao: "Nordeste",
+  Alagoas: {
     Hospitais_Privados_2024: 50,
     Leitos_Privados_2024: 3580,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -9.5713, Longitude: -36.782 },
+    Coordenadas: { Latitude: -9.5713, Longitude: -36.782 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 31.9, Interior: 68.1 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 14.0,
@@ -81,12 +97,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 44.0, Especializado: 48.3, Hospital_Dia: 7.7 },
     Tipo_Atendimento: { SUS: 29.6, Nao_SUS: 70.4 },
   },
-  amapa: {
-    Regiao: "Norte",
+  Amapá: {
     Hospitais_Privados_2024: 6,
     Leitos_Privados_2024: 293,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: 1.41, Longitude: -51.77 },
+    Coordenadas: { Latitude: 1.41, Longitude: -51.77 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 16.5, Interior: 83.5 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 0.0,
@@ -103,12 +118,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 19.0, Especializado: 74.7, Hospital_Dia: 6.3 },
     Tipo_Atendimento: { SUS: 67.1, Nao_SUS: 32.9 },
   },
-  amazonas: {
-    Regiao: "Norte",
+  Amazonas: {
     Hospitais_Privados_2024: 32,
     Leitos_Privados_2024: 1082,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -3.07, Longitude: -60.02 },
+    Coordenadas: { Latitude: -3.07, Longitude: -60.02 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 12.1, Interior: 87.9 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 3.9,
@@ -125,12 +139,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 17.6, Especializado: 30.7, Hospital_Dia: 51.7 },
     Tipo_Atendimento: { SUS: 54.9, Nao_SUS: 45.1 },
   },
-  bahia: {
-    Regiao: "Nordeste",
+  Bahia: {
     Hospitais_Privados_2024: 385,
     Leitos_Privados_2024: 13169,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -12.97, Longitude: -38.5011 },
+    Coordenadas: { Latitude: -12.97, Longitude: -38.5011 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 75.5, Interior: 24.5 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 35.0,
@@ -147,12 +160,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 28.4, Especializado: 15.5, Hospital_Dia: 56.1 },
     Tipo_Atendimento: { SUS: 39.6, Nao_SUS: 60.4 },
   },
-  ceara: {
-    Regiao: "Nordeste",
+  Ceará: {
     Hospitais_Privados_2024: 140,
     Leitos_Privados_2024: 9074,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -3.717, Longitude: -38.543 },
+    Coordenadas: { Latitude: -3.717, Longitude: -38.543 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 52.2, Interior: 47.8 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 33.3,
@@ -169,12 +181,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 32.7, Especializado: 59.3, Hospital_Dia: 8.0 },
     Tipo_Atendimento: { SUS: 38.1, Nao_SUS: 61.9 },
   },
-  distrito_federal: {
-    Regiao: "Centro-Oeste",
+  "Distrito Federal": {
     Hospitais_Privados_2024: 87,
     Leitos_Privados_2024: 4519,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -15.7939, Longitude: -47.8828 },
+    Coordenadas: { Latitude: -15.7939, Longitude: -47.8828 },
+    Regiao: "Centro-Oeste",
     Distribuicao_Localizacao: { Capital: 100.0, Interior: 0.0 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 0.0,
@@ -191,12 +202,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 30.2, Especializado: 33.6, Hospital_Dia: 36.2 },
     Tipo_Atendimento: { SUS: 76.6, Nao_SUS: 23.4 },
   },
-  espirito_santo: {
-    Regiao: "Sudeste",
+  "Espírito Santo": {
     Hospitais_Privados_2024: 87,
     Leitos_Privados_2024: 5378,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -19.9191, Longitude: -43.9345 },
+    Coordenadas: { Latitude: -19.9191, Longitude: -43.9345 },
+    Regiao: "Sudeste",
     Distribuicao_Localizacao: { Capital: 8.8, Interior: 91.2 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 27.8,
@@ -213,12 +223,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 13.7, Especializado: 80.7, Hospital_Dia: 5.6 },
     Tipo_Atendimento: { SUS: 36.5, Nao_SUS: 63.5 },
   },
-  goias: {
-    Regiao: "Centro-Oeste",
+  Goiás: {
     Hospitais_Privados_2024: 250,
     Leitos_Privados_2024: 10426,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -16.6864, Longitude: -49.2643 },
+    Coordenadas: { Latitude: -16.6864, Longitude: -49.2643 },
+    Regiao: "Centro-Oeste",
     Distribuicao_Localizacao: { Capital: 58.4, Interior: 41.6 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 30.9,
@@ -235,12 +244,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 30.6, Especializado: 64.1, Hospital_Dia: 5.3 },
     Tipo_Atendimento: { SUS: 45.5, Nao_SUS: 54.5 },
   },
-  maranhao: {
-    Regiao: "Nordeste",
+  Maranhão: {
     Hospitais_Privados_2024: 65,
     Leitos_Privados_2024: 3933,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -2.5307, Longitude: -44.3068 },
+    Coordenadas: { Latitude: -2.5307, Longitude: -44.3068 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 52.3, Interior: 47.7 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 28.2,
@@ -257,12 +265,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 24.2, Especializado: 66.4, Hospital_Dia: 9.4 },
     Tipo_Atendimento: { SUS: 47.4, Nao_SUS: 52.6 },
   },
-  mato_grosso_do_sul: {
-    Regiao: "Centro-Oeste",
+  "Mato Grosso do Sul": {
     Hospitais_Privados_2024: 79,
     Leitos_Privados_2024: 4314,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -20.7722, Longitude: -54.7852 },
+    Coordenadas: { Latitude: -20.7722, Longitude: -54.7852 },
+    Regiao: "Centro-Oeste",
     Distribuicao_Localizacao: { Capital: 74.3, Interior: 25.7 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 35.1,
@@ -279,12 +286,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 12.6, Especializado: 84.2, Hospital_Dia: 3.2 },
     Tipo_Atendimento: { SUS: 38.0, Nao_SUS: 62.0 },
   },
-  mato_grosso: {
-    Regiao: "Centro-Oeste",
+  "Mato Grosso": {
     Hospitais_Privados_2024: 98,
     Leitos_Privados_2024: 3890,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -12.6819, Longitude: -56.9211 },
+    Coordenadas: { Latitude: -12.6819, Longitude: -56.9211 },
+    Regiao: "Centro-Oeste",
     Distribuicao_Localizacao: { Capital: 78.2, Interior: 21.8 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 43.6,
@@ -301,12 +307,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 10.6, Especializado: 85.2, Hospital_Dia: 4.2 },
     Tipo_Atendimento: { SUS: 42.5, Nao_SUS: 57.5 },
   },
-  minas_gerais: {
-    Regiao: "Sudeste",
+  "Minas Gerais": {
     Hospitais_Privados_2024: 582,
     Leitos_Privados_2024: 32569,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -18.5122, Longitude: -44.555 },
+    Coordenadas: { Latitude: -18.5122, Longitude: -44.555 },
+    Regiao: "Sudeste",
     Distribuicao_Localizacao: { Capital: 86.3, Interior: 13.7 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 31.2,
@@ -323,12 +328,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 13.1, Especializado: 77.4, Hospital_Dia: 9.5 },
     Tipo_Atendimento: { SUS: 29.2, Nao_SUS: 70.8 },
   },
-  para: {
-    Regiao: "Norte",
+  Pará: {
     Hospitais_Privados_2024: 121,
     Leitos_Privados_2024: 6304,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -3.4168, Longitude: -52.0976 },
+    Coordenadas: { Latitude: -3.4168, Longitude: -52.0976 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 75.0, Interior: 25.0 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 35.1,
@@ -345,12 +349,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 17.9, Especializado: 77.5, Hospital_Dia: 4.6 },
     Tipo_Atendimento: { SUS: 42.5, Nao_SUS: 57.5 },
   },
-  paraiba: {
-    Regiao: "Nordeste",
+  Paraíba: {
     Hospitais_Privados_2024: 80,
     Leitos_Privados_2024: 3658,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -7.1201, Longitude: -34.8731 },
+    Coordenadas: { Latitude: -7.1201, Longitude: -34.8731 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 58.1, Interior: 41.9 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 17.1,
@@ -367,12 +370,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 15.8, Especializado: 34.9, Hospital_Dia: 49.3 },
     Tipo_Atendimento: { SUS: 33.7, Nao_SUS: 66.3 },
   },
-  parana: {
-    Regiao: "Sul",
+  Paraná: {
     Hospitais_Privados_2024: 324,
     Leitos_Privados_2024: 19962,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -24.8949, Longitude: -51.9253 },
+    Coordenadas: { Latitude: -24.8949, Longitude: -51.9253 },
+    Regiao: "Sul",
     Distribuicao_Localizacao: { Capital: 80.9, Interior: 19.1 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 27.4,
@@ -389,12 +391,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 11.6, Especializado: 13.8, Hospital_Dia: 74.5 },
     Tipo_Atendimento: { SUS: 32.7, Nao_SUS: 67.3 },
   },
-  pernambuco: {
-    Regiao: "Nordeste",
+  Pernambuco: {
     Hospitais_Privados_2024: 161,
     Leitos_Privados_2024: 10280,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -8.0476, Longitude: -34.877 },
+    Coordenadas: { Latitude: -8.0476, Longitude: -34.877 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 64.5, Interior: 35.5 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 29.6,
@@ -411,12 +412,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 28.3, Especializado: 67.6, Hospital_Dia: 4.1 },
     Tipo_Atendimento: { SUS: 46.0, Nao_SUS: 54.0 },
   },
-  piaui: {
-    Regiao: "Nordeste",
+  Piauí: {
     Hospitais_Privados_2024: 55,
     Leitos_Privados_2024: 2455,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -6.5989, Longitude: -42.8431 },
+    Coordenadas: { Latitude: -6.5989, Longitude: -42.8431 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 61.7, Interior: 38.3 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 38.5,
@@ -433,12 +433,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 23.1, Especializado: 72.1, Hospital_Dia: 4.9 },
     Tipo_Atendimento: { SUS: 26.2, Nao_SUS: 73.8 },
   },
-  rio_de_janeiro: {
-    Regiao: "Sudeste",
+  "Rio de Janeiro": {
     Hospitais_Privados_2024: 345,
     Leitos_Privados_2024: 17817,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -22.9068, Longitude: -43.1729 },
+    Coordenadas: { Latitude: -22.9068, Longitude: -43.1729 },
+    Regiao: "Sudeste",
     Distribuicao_Localizacao: { Capital: 57.1, Interior: 42.9 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 9.9,
@@ -455,12 +454,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 30.7, Especializado: 60.7, Hospital_Dia: 8.6 },
     Tipo_Atendimento: { SUS: 68.4, Nao_SUS: 31.6 },
   },
-  rio_grande_do_norte: {
-    Regiao: "Nordeste",
+  "Rio Grande do Norte": {
     Hospitais_Privados_2024: 65,
     Leitos_Privados_2024: 3189,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -5.7945, Longitude: -35.211 },
+    Coordenadas: { Latitude: -5.7945, Longitude: -35.211 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 44.8, Interior: 55.2 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 12.5,
@@ -477,12 +475,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 22.8, Especializado: 29.6, Hospital_Dia: 47.7 },
     Tipo_Atendimento: { SUS: 26.2, Nao_SUS: 73.8 },
   },
-  rio_grande_do_sul: {
-    Regiao: "Sul",
+  "Rio Grande do Sul": {
     Hospitais_Privados_2024: 300,
     Leitos_Privados_2024: 25950,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -30.0346, Longitude: -51.2177 },
+    Coordenadas: { Latitude: -30.0346, Longitude: -51.2177 },
+    Regiao: "Sul",
     Distribuicao_Localizacao: { Capital: 9.1, Interior: 90.9 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 30.9,
@@ -499,12 +496,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 90.9, Especializado: 3.9, Hospital_Dia: 0.0 },
     Tipo_Atendimento: { SUS: 11.3, Nao_SUS: 88.7 },
   },
-  rondonia: {
-    Regiao: "Norte",
+  Rondônia: {
     Hospitais_Privados_2024: 61,
     Leitos_Privados_2024: 1436,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -11.5057, Longitude: -63.5806 },
+    Coordenadas: { Latitude: -11.5057, Longitude: -63.5806 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 71.6, Interior: 28.4 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 43.4,
@@ -521,12 +517,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 10.9, Especializado: 80.6, Hospital_Dia: 8.6 },
     Tipo_Atendimento: { SUS: 73.4, Nao_SUS: 26.6 },
   },
-  roraima: {
-    Regiao: "Norte",
+  Roraima: {
     Hospitais_Privados_2024: 4,
     Leitos_Privados_2024: 310,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: 2.8235, Longitude: -60.6753 },
+    Coordenadas: { Latitude: 2.8235, Longitude: -60.6753 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 100.0, Interior: 0.0 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 0.0,
@@ -543,12 +538,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 95.1, Especializado: 4.9, Hospital_Dia: 0.0 },
     Tipo_Atendimento: { SUS: 63.4, Nao_SUS: 36.6 },
   },
-  santa_catarina: {
-    Regiao: "Sul",
+  "Santa Catarina": {
     Hospitais_Privados_2024: 238,
     Leitos_Privados_2024: 12207,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -27.5954, Longitude: -48.548 },
+    Coordenadas: { Latitude: -27.5954, Longitude: -48.548 },
+    Regiao: "Sul",
     Distribuicao_Localizacao: { Capital: 87.9, Interior: 12.1 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 24.4,
@@ -565,12 +559,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 15.2, Especializado: 77.6, Hospital_Dia: 7.2 },
     Tipo_Atendimento: { SUS: 25.7, Nao_SUS: 74.3 },
   },
-  sao_paulo: {
-    Regiao: "Sudeste",
+  "São Paulo": {
     Hospitais_Privados_2024: 896,
     Leitos_Privados_2024: 65755,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -23.5505, Longitude: -46.6333 },
+    Coordenadas: { Latitude: -23.5505, Longitude: -46.6333 },
+    Regiao: "Sudeste",
     Distribuicao_Localizacao: { Capital: 79.3, Interior: 20.7 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 23.3,
@@ -587,12 +580,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 15.4, Especializado: 15.3, Hospital_Dia: 69.3 },
     Tipo_Atendimento: { SUS: 50.6, Nao_SUS: 49.4 },
   },
-  sergipe: {
-    Regiao: "Nordeste",
+  Sergipe: {
     Hospitais_Privados_2024: 47,
     Leitos_Privados_2024: 1836,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -10.9472, Longitude: -37.0731 },
+    Coordenadas: { Latitude: -10.9472, Longitude: -37.0731 },
+    Regiao: "Nordeste",
     Distribuicao_Localizacao: { Capital: 36.0, Interior: 64.0 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 25.1,
@@ -609,12 +601,11 @@ const realHospitalData: Record<string, EstadoData> = {
     Tipo_Hospital: { Geral: 36.9, Especializado: 17.2, Hospital_Dia: 45.8 },
     Tipo_Atendimento: { SUS: 26.3, Nao_SUS: 73.7 },
   },
-  tocantins: {
-    Regiao: "Norte",
+  Tocantins: {
     Hospitais_Privados_2024: 31,
     Leitos_Privados_2024: 896,
-    Leitos_por_1000_hab: 2.0,
-    Localizacao: { Latitude: -10.1753, Longitude: -48.2982 },
+    Coordenadas: { Latitude: -10.1753, Longitude: -48.2982 },
+    Regiao: "Norte",
     Distribuicao_Localizacao: { Capital: 42.3, Interior: 57.7 },
     Distribuicao_Porte_Populacional: {
       Ate_20k: 24.9,
@@ -633,181 +624,68 @@ const realHospitalData: Record<string, EstadoData> = {
   },
 }
 
-// Mapeamento de estados para nomes completos
-const estadoNomes: Record<string, string> = {
-  acre: "Acre",
-  alagoas: "Alagoas",
-  amapa: "Amapá",
-  amazonas: "Amazonas",
-  bahia: "Bahia",
-  ceara: "Ceará",
-  distrito_federal: "Distrito Federal",
-  espirito_santo: "Espírito Santo",
-  goias: "Goiás",
-  maranhao: "Maranhão",
-  mato_grosso_do_sul: "Mato Grosso do Sul",
-  mato_grosso: "Mato Grosso",
-  minas_gerais: "Minas Gerais",
-  para: "Pará",
-  paraiba: "Paraíba",
-  parana: "Paraná",
-  pernambuco: "Pernambuco",
-  piaui: "Piauí",
-  rio_de_janeiro: "Rio de Janeiro",
-  rio_grande_do_norte: "Rio Grande do Norte",
-  rio_grande_do_sul: "Rio Grande do Sul",
-  rondonia: "Rondônia",
-  roraima: "Roraima",
-  santa_catarina: "Santa Catarina",
-  sao_paulo: "São Paulo",
-  sergipe: "Sergipe",
-  tocantins: "Tocantins",
+// Carregar dados reais embutidos
+export async function loadRealHospitalData(): Promise<Record<string, HospitalData>> {
+  return hospitalData
 }
 
-// Mapeamento de regiões para IDs
-const regiaoIds: Record<string, string> = {
-  Norte: "north",
-  Nordeste: "northeast",
-  "Centro-Oeste": "central-west",
-  Sudeste: "southeast",
-  Sul: "south",
-}
-
-// Função para carregar dados reais (agora embutidos)
-export async function loadRealHospitalData(): Promise<Record<string, EstadoData>> {
-  console.log("✅ Carregando dados reais completos (27 estados)")
-  return realHospitalData
-}
-
-// Função para obter dados de um estado específico
-export function getStateData(stateKey: string): EstadoData | null {
-  return realHospitalData[stateKey] || null
-}
-
-// Função para obter lista de todos os estados
+// Obter lista de todos os estados
 export function getAllStates() {
-  return Object.keys(realHospitalData).map((key) => ({
-    id: key,
-    name: estadoNomes[key],
-    region: realHospitalData[key].Regiao,
-  }))
-}
-
-// Função para calcular estatísticas agregadas por região
-export function calculateRegionalStats(statesData: Record<string, EstadoData>) {
-  const regionalStats: Record<string, any> = {}
-
-  Object.entries(statesData).forEach(([estadoKey, data]) => {
-    const regiaoId = regiaoIds[data.Regiao]
-
-    if (!regionalStats[regiaoId]) {
-      regionalStats[regiaoId] = {
-        id: regiaoId,
-        name: data.Regiao,
-        hospitals: 0,
-        urbanAccessIndex: 0,
-        ruralAccessIndex: 0,
-        totalBeds: 0,
-        states: [],
-        Hospitais_Privados_2024: 0,
-        Leitos_Privados_2024: 0,
-      }
+  const states = Object.keys(hospitalData).map((key) => {
+    const data = hospitalData[key]
+    return {
+      id: key.toLowerCase().replace(/\s+/g, "-"),
+      name: key,
+      region: data.Regiao,
     }
-
-    const region = regionalStats[regiaoId]
-    region.states.push(estadoNomes[estadoKey] || estadoKey)
-    region.hospitals += data.Hospitais_Privados_2024
-    region.totalBeds += data.Leitos_Privados_2024
-    region.Hospitais_Privados_2024 += data.Hospitais_Privados_2024
-    region.Leitos_Privados_2024 += data.Leitos_Privados_2024
-
-    // Calcular índices de acesso (estimativa baseada na distribuição)
-    region.urbanAccessIndex = Math.round(75 + data.Distribuicao_Localizacao.Capital / 10)
-    region.ruralAccessIndex = Math.round(45 + data.Distribuicao_Localizacao.Interior / 10)
   })
-
-  return regionalStats
+  return states.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// Função para obter estatísticas nacionais
-export function getNationalStats(statesData: Record<string, EstadoData>) {
-  const totalHospitals = Object.values(statesData).reduce((sum, data) => sum + data.Hospitais_Privados_2024, 0)
-  const totalBeds = Object.values(statesData).reduce((sum, data) => sum + data.Leitos_Privados_2024, 0)
+// Obter dados de gráfico para um estado específico
+export function getStateChartData(stateId: string): StateChartData | null {
+  // Encontrar o estado pelo ID
+  const stateKey = Object.keys(hospitalData).find(
+    (key) => key.toLowerCase().replace(/\s+/g, "-") === stateId.toLowerCase(),
+  )
+
+  if (!stateKey) return null
+
+  const data = hospitalData[stateKey]
+
+  // Calcular densidade de leitos (estimativa baseada em população média)
+  const estimatedPopulation = getEstimatedPopulation(stateKey)
+  const bedsPerThousand = (data.Leitos_Privados_2024 / estimatedPopulation) * 1000
 
   return {
-    totalHospitals,
-    totalBeds,
-    averageOccupancy: 75.2, // Estimativa baseada em dados históricos
-    patientsServed: Math.round(totalBeds * 0.75 * 30), // Estimativa: 75% ocupação x 30 dias
-  }
-}
-
-// Função para processar dados de hospitais para gráficos
-export function getHospitalChartData(statesData: Record<string, EstadoData>) {
-  return Object.entries(statesData).map(([estadoKey, data]) => ({
-    id: estadoKey,
-    name: estadoNomes[estadoKey] || estadoKey,
+    id: stateId,
+    name: stateKey,
     region: data.Regiao,
-    beds: data.Leitos_Privados_2024,
-    hospitals: data.Hospitais_Privados_2024,
-    occupancy: Math.round(70 + Math.random() * 20), // Simulação de ocupação
-    doctors: Math.round(data.Leitos_Privados_2024 * 0.3), // Estimativa
-    nurses: Math.round(data.Leitos_Privados_2024 * 0.6), // Estimativa
-    patientOutcomes: [
-      { month: "Jan", successRate: Math.round(75 + Math.random() * 15) },
-      { month: "Feb", successRate: Math.round(75 + Math.random() * 15) },
-      { month: "Mar", successRate: Math.round(75 + Math.random() * 15) },
-      { month: "Apr", successRate: Math.round(75 + Math.random() * 15) },
-      { month: "May", successRate: Math.round(75 + Math.random() * 15) },
-      { month: "Jun", successRate: Math.round(75 + Math.random() * 15) },
-    ],
-  }))
-}
-
-// Função para obter dados formatados para gráficos por estado
-export function getStateChartData(stateKey: string) {
-  const data = realHospitalData[stateKey]
-  if (!data) return null
-
-  return {
-    id: stateKey,
-    name: estadoNomes[stateKey],
-    region: data.Regiao,
-
-    // Dados básicos
     hospitals: data.Hospitais_Privados_2024,
     beds: data.Leitos_Privados_2024,
-    bedsPerThousand: data.Leitos_por_1000_hab,
-
-    // Localização
-    coordinates: data.Localizacao,
-
-    // Distribuições para gráficos
+    bedsPerThousand: Math.round(bedsPerThousand * 10) / 10,
+    coordinates: data.Coordenadas,
     locationDistribution: [
       { name: "Capital", value: data.Distribuicao_Localizacao.Capital },
       { name: "Interior", value: data.Distribuicao_Localizacao.Interior },
     ],
-
     populationDistribution: [
       { name: "Até 20k", value: data.Distribuicao_Porte_Populacional.Ate_20k },
       { name: "20k-100k", value: data.Distribuicao_Porte_Populacional.Entre_20k_e_100k },
       { name: "100k-500k", value: data.Distribuicao_Porte_Populacional.Entre_100k_e_500k },
       { name: "Mais de 500k", value: data.Distribuicao_Porte_Populacional.Mais_de_500k },
     ],
-
     hospitalSizeDistribution: [
       { name: "Até 50 leitos", value: data.Distribuicao_Porte_Hospitalar.Ate_50_leitos },
       { name: "51-150 leitos", value: data.Distribuicao_Porte_Hospitalar.Entre_51_e_150_leitos },
       { name: "151-500 leitos", value: data.Distribuicao_Porte_Hospitalar.Entre_151_e_500_leitos },
       { name: "Mais de 500 leitos", value: data.Distribuicao_Porte_Hospitalar.Mais_de_500_leitos },
     ],
-
     hospitalTypeDistribution: [
       { name: "Geral", value: data.Tipo_Hospital.Geral },
       { name: "Especializado", value: data.Tipo_Hospital.Especializado },
       { name: "Hospital Dia", value: data.Tipo_Hospital.Hospital_Dia },
     ],
-
     serviceTypeDistribution: [
       { name: "SUS", value: data.Tipo_Atendimento.SUS },
       { name: "Não SUS", value: data.Tipo_Atendimento.Nao_SUS },
@@ -815,30 +693,79 @@ export function getStateChartData(stateKey: string) {
   }
 }
 
-// Função para importar dados reais para o Firebase (compatibilidade)
-export async function importRealDataToFirebase() {
-  try {
-    console.log("✅ Dados reais já estão embutidos no sistema")
-    return { success: true, message: "Dados reais carregados com sucesso" }
-  } catch (error) {
-    console.error("❌ Erro ao carregar dados:", error)
-    return { success: false, error: "Erro ao carregar dados reais" }
-  }
+// Calcular estatísticas regionais
+export function calculateRegionalStats(data: Record<string, HospitalData>) {
+  const regions: Record<string, any> = {}
+
+  Object.entries(data).forEach(([state, stateData]) => {
+    const region = stateData.Regiao
+    if (!regions[region]) {
+      regions[region] = {
+        id: region.toLowerCase().replace(/\s+/g, "-"),
+        name: region,
+        hospitals: 0,
+        totalBeds: 0,
+        states: [],
+      }
+    }
+
+    regions[region].hospitals += stateData.Hospitais_Privados_2024
+    regions[region].totalBeds += stateData.Leitos_Privados_2024
+    regions[region].states.push(state)
+  })
+
+  return regions
 }
 
-// Função para verificar se os dados reais foram importados (compatibilidade)
+// Função auxiliar para obter população estimada
+function getEstimatedPopulation(state: string): number {
+  // Estimativas populacionais aproximadas (em milhares)
+  const populations: Record<string, number> = {
+    "São Paulo": 46649,
+    "Minas Gerais": 21411,
+    "Rio de Janeiro": 17463,
+    Bahia: 14985,
+    Paraná: 11597,
+    "Rio Grande do Sul": 11466,
+    Pernambuco: 9674,
+    Ceará: 9240,
+    Pará: 8777,
+    "Santa Catarina": 7338,
+    Maranhão: 7153,
+    Goiás: 7206,
+    Paraíba: 4059,
+    "Espírito Santo": 4108,
+    Piauí: 3289,
+    Alagoas: 3365,
+    "Rio Grande do Norte": 3560,
+    "Mato Grosso": 3567,
+    "Mato Grosso do Sul": 2839,
+    "Distrito Federal": 3094,
+    Sergipe: 2338,
+    Rondônia: 1815,
+    Tocantins: 1607,
+    Acre: 906,
+    Amapá: 877,
+    Roraima: 652,
+  }
+  return populations[state] || 1000
+}
+
+// Funções de compatibilidade para Firebase (não utilizadas)
+export async function importRealDataToFirebase() {
+  console.log("Função de compatibilidade - dados já carregados localmente")
+  return { success: true, message: "Dados carregados com sucesso" }
+}
+
 export async function checkRealDataImported() {
-  try {
-    const data = await loadRealHospitalData()
-    const totalStates = Object.keys(data).length
-    return {
-      imported: totalStates > 0,
-      totalStates,
-      totalHospitals: Object.values(data).reduce((sum, state) => sum + state.Hospitais_Privados_2024, 0),
-      totalBeds: Object.values(data).reduce((sum, state) => sum + state.Leitos_Privados_2024, 0),
-    }
-  } catch (error) {
-    console.error("❌ Erro ao verificar dados:", error)
-    return { imported: false, totalStates: 0, totalHospitals: 0, totalBeds: 0 }
+  const totalStates = Object.keys(hospitalData).length
+  const totalHospitals = Object.values(hospitalData).reduce((sum, state) => sum + state.Hospitais_Privados_2024, 0)
+  const totalBeds = Object.values(hospitalData).reduce((sum, state) => sum + state.Leitos_Privados_2024, 0)
+
+  return {
+    imported: true,
+    totalStates,
+    totalHospitals,
+    totalBeds,
   }
 }
