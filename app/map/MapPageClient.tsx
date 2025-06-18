@@ -236,6 +236,7 @@ export default function MapPageClient() {
                   data={filteredData}
                   activeTab="hospitals"
                   viewMode={viewMode}
+                  filteredRegions={selectedRegions}
                 />
               </TabsContent>
 
@@ -246,6 +247,7 @@ export default function MapPageClient() {
                   data={filteredData}
                   activeTab="beds"
                   viewMode={viewMode}
+                  filteredRegions={selectedRegions}
                 />
               </TabsContent>
             </div>
@@ -253,30 +255,41 @@ export default function MapPageClient() {
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle>Estatísticas Nacionais</CardTitle>
-                  <CardDescription>Visão geral dos recursos de saúde</CardDescription>
+                  <CardTitle>Estatísticas {selectedRegions.length < 5 ? "Filtradas" : "Nacionais"}</CardTitle>
+                  <CardDescription>
+                    {selectedRegions.length < 5
+                      ? `Dados das ${selectedRegions.length} regiões selecionadas`
+                      : "Visão geral dos recursos de saúde"}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
                       <h3 className="font-medium">Total de Hospitais Privados</h3>
-                      <p className="text-2xl font-bold">8,457</p>
+                      <p className="text-2xl font-bold">
+                        {filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0).toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <h3 className="font-medium">Total de Leitos Privados</h3>
-                      <p className="text-2xl font-bold">245,832</p>
+                      <p className="text-2xl font-bold">
+                        {filteredData.reduce((sum, region) => sum + (region.beds || 0), 0).toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <h3 className="font-medium">Leitos por Hospital</h3>
-                      <p className="text-2xl font-bold">29.1</p>
+                      <p className="text-2xl font-bold">
+                        {filteredData.length > 0
+                          ? Math.round(
+                              filteredData.reduce((sum, region) => sum + (region.beds || 0), 0) /
+                                filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0),
+                            )
+                          : 0}
+                      </p>
                     </div>
                     <div>
-                      <h3 className="font-medium">Estados</h3>
-                      <p className="text-2xl font-bold">27</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Regiões</h3>
-                      <p className="text-2xl font-bold">5</p>
+                      <h3 className="font-medium">Regiões Selecionadas</h3>
+                      <p className="text-2xl font-bold">{selectedRegions.length}</p>
                     </div>
                   </div>
                 </CardContent>

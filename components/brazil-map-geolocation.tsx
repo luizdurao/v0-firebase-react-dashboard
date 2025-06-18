@@ -89,11 +89,20 @@ const regionColors = {
 interface BrazilMapGeolocationProps {
   selectedRegion: string
   onRegionSelect: (regionId: string) => void
-  data: any[]
+  data: any[] // Dados filtrados das regiões
   activeTab: string
+  viewMode?: string
+  filteredRegions?: string[]
 }
 
-const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMapGeolocationProps) => {
+const BrazilMapGeolocation = ({
+  selectedRegion,
+  onRegionSelect,
+  data, // Usar os dados passados como prop
+  activeTab,
+  viewMode,
+  filteredRegions = [],
+}: BrazilMapGeolocationProps) => {
   const [geoData, setGeoData] = useState<any>(null)
   const [hospitalData, setHospitalData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -103,6 +112,7 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     const fetchData = async () => {
       try {
         console.log("Carregando dados geográficos e hospitalares...")
+        console.log("Dados filtrados recebidos:", data)
 
         // Carregar dados geográficos
         const geoResponse = await fetch(BRAZIL_GEOJSON)
@@ -111,7 +121,7 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
         }
         const geoData = await geoResponse.json()
 
-        // Carregar dados hospitalares
+        // Carregar dados hospitalares (para detalhes por estado)
         const hospitalData = await loadRealHospitalData()
 
         setGeoData(geoData)
@@ -125,7 +135,23 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     }
 
     fetchData()
-  }, [])
+  }, [data]) // Re-carregar quando os dados mudarem
+
+  // Verificar se uma região está nos dados filtrados
+  const isRegionInFilteredData = (regionId: string) => {
+    return data.some((region) => region.id === regionId)
+  }
+
+  // Verificar se uma região está nos filtros selecionados
+  const isRegionFiltered = (regionId: string) => {
+    if (filteredRegions.length === 0) return true
+    return filteredRegions.includes(regionId)
+  }
+
+  // Verificar se uma região deve ser mostrada (está nos dados E nos filtros)
+  const shouldShowRegion = (regionId: string) => {
+    return isRegionInFilteredData(regionId) && isRegionFiltered(regionId)
+  }
 
   const getStateColor = (geo) => {
     if (!geo?.properties?.sigla) return "#cccccc"
@@ -134,6 +160,11 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     const regionId = stateToRegion[stateCode]
 
     if (!regionId) return "#cccccc"
+
+    // Verificar se a região deve ser mostrada
+    if (!shouldShowRegion(regionId)) {
+      return "#f0f0f0" // Cor cinza claro para regiões filtradas
+    }
 
     const baseColor = regionColors[regionId]
     if (!baseColor) return "#cccccc"
@@ -155,9 +186,21 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
 
     if (!regionId) return `${stateName}: Região não identificada`
 
-    // Buscar dados reais do estado
+    // Verificar se a região deve ser mostrada
+    if (!shouldShowRegion(regionId)) {
+      const reason = !isRegionInFilteredData(regionId)
+        ? "Região não atende aos filtros de valor"
+        : "Região desmarcada nos filtros"
+      return `${stateName}: ${reason}`
+    }
+
+    // Buscar dados da região filtrada
+    const regionData = data.find((region) => region.id === regionId)
+    if (!regionData) return `${stateName}: Dados da região não disponíveis`
+
+    // Buscar dados reais do estado para detalhes
     const stateData = hospitalData[stateName]
-    if (!stateData) return `${stateName}: Sem dados disponíveis`
+    if (!stateData) return `${stateName}: Sem dados detalhados disponíveis`
 
     const regionName =
       {
@@ -168,22 +211,35 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
         south: "Sul",
       }[regionId] || regionId
 
+    const hospitals = stateData.Hospitais_Privados_2024
+    const beds = stateData.Leitos_Privados_2024
+    const bedsPerHospital = Math.round(beds / hospitals)
+
+    // Mostrar dados da região (agregados) e do estado (específicos)
     return `
       <div class="p-3 bg-white rounded-lg shadow-lg border max-w-xs">
         <div class="font-bold text-lg mb-2">${stateName}</div>
         <div class="text-sm text-gray-600 mb-2">Região: ${regionName}</div>
+        
+        <div class="mb-2 p-2 bg-blue-50 rounded text-xs">
+          <div class="font-medium">Dados da Região (Filtrados):</div>
+          <div>Hospitais: ${regionData.hospitals.toLocaleString()}</div>
+          <div>Leitos: ${regionData.beds.toLocaleString()}</div>
+        </div>
+        
         <div class="space-y-1 text-sm">
+          <div class="font-medium">Dados do Estado:</div>
           <div class="flex justify-between">
-            <span><strong>Hospitais Privados:</strong></span>
-            <span>${stateData.Hospitais_Privados_2024.toLocaleString()}</span>
+            <span>Hospitais Privados:</span>
+            <span class="${activeTab === "hospitals" ? "font-bold text-blue-600" : ""}">${hospitals.toLocaleString()}</span>
           </div>
           <div class="flex justify-between">
-            <span><strong>Leitos Privados:</strong></span>
-            <span>${stateData.Leitos_Privados_2024.toLocaleString()}</span>
+            <span>Leitos Privados:</span>
+            <span class="${activeTab === "beds" ? "font-bold text-green-600" : ""}">${beds.toLocaleString()}</span>
           </div>
           <div class="flex justify-between">
-            <span><strong>Leitos/Hospital:</strong></span>
-            <span>${Math.round(stateData.Leitos_Privados_2024 / stateData.Hospitais_Privados_2024)}</span>
+            <span>Leitos/Hospital:</span>
+            <span>${bedsPerHospital}</span>
           </div>
         </div>
       </div>
@@ -220,12 +276,34 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     )
   }
 
+  // Calcular estatísticas dos dados filtrados
+  const filteredStats = {
+    totalHospitals: data.reduce((sum, region) => sum + (region.hospitals || 0), 0),
+    totalBeds: data.reduce((sum, region) => sum + (region.beds || 0), 0),
+    regionsCount: data.length,
+  }
+
   return (
     <div className="w-full bg-white rounded-lg shadow-sm border">
       <div className="p-4">
-        <h3 className="text-lg font-semibold mb-4 text-center">
+        <h3 className="text-lg font-semibold mb-2 text-center">
           Mapa do Brasil - {activeTab === "hospitals" ? "Hospitais Privados" : "Leitos Privados"} (2024)
         </h3>
+
+        {/* Indicador de dados filtrados */}
+        <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg text-center border">
+          <div className="text-sm text-gray-700 mb-1">
+            <strong>Dados Filtrados:</strong> {filteredStats.regionsCount} de 5 regiões
+          </div>
+          <div className="flex justify-center gap-4 text-xs">
+            <span className={activeTab === "hospitals" ? "font-bold text-blue-600" : ""}>
+              🏥 {filteredStats.totalHospitals.toLocaleString()} hospitais
+            </span>
+            <span className={activeTab === "beds" ? "font-bold text-green-600" : ""}>
+              🛏️ {filteredStats.totalBeds.toLocaleString()} leitos
+            </span>
+          </div>
+        </div>
 
         <div className="aspect-[4/3] w-full">
           <ComposableMap
@@ -242,6 +320,7 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
                   geographies.map((geo) => {
                     const stateCode = geo.properties.sigla || geo.properties.SIGLA
                     const regionId = stateToRegion[stateCode]
+                    const shouldShow = shouldShowRegion(regionId)
 
                     return (
                       <Geography
@@ -253,25 +332,26 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
                         style={{
                           default: {
                             outline: "none",
-                            cursor: "pointer",
+                            cursor: shouldShow ? "pointer" : "not-allowed",
+                            opacity: shouldShow ? 1 : 0.3,
                           },
                           hover: {
                             outline: "none",
-                            fill: getStateColor(geo),
-                            opacity: 0.8,
-                            stroke: "#333",
-                            strokeWidth: 1.2,
+                            fill: shouldShow ? getStateColor(geo) : "#f0f0f0",
+                            opacity: shouldShow ? 0.8 : 0.3,
+                            stroke: shouldShow ? "#333" : "#ccc",
+                            strokeWidth: shouldShow ? 1.2 : 0.8,
                           },
                           pressed: {
                             outline: "none",
                             fill: getStateColor(geo),
-                            opacity: 0.9,
+                            opacity: shouldShow ? 0.9 : 0.3,
                           },
                         }}
                         data-tooltip-id="brazil-map-tooltip"
                         data-tooltip-html={generateTooltipContent(geo)}
                         onClick={() => {
-                          if (regionId) {
+                          if (regionId && shouldShow) {
                             onRegionSelect(regionId)
                           }
                         }}
@@ -309,21 +389,38 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
                 south: "Sul",
               }
               const regionName = regionNames[regionId] || regionId
+              const shouldShow = shouldShowRegion(regionId)
+              const regionData = data.find((region) => region.id === regionId)
 
               return (
                 <div
                   key={regionId}
-                  className="flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded"
+                  className={`flex items-center gap-2 cursor-pointer hover:bg-white px-2 py-1 rounded ${
+                    !shouldShow ? "opacity-50" : ""
+                  }`}
                   onClick={() => onRegionSelect(regionId)}
                 >
                   <div
                     className="w-4 h-4 rounded-full border border-gray-300"
                     style={{
-                      backgroundColor: color,
+                      backgroundColor: shouldShow ? color : "#f0f0f0",
                       opacity: selectedRegion === regionId || selectedRegion === "all" ? 1 : 0.4,
                     }}
                   />
-                  <span className={`text-sm ${selectedRegion === regionId ? "font-bold" : ""}`}>{regionName}</span>
+                  <div className="flex flex-col">
+                    <span
+                      className={`text-sm ${selectedRegion === regionId ? "font-bold" : ""} ${!shouldShow ? "line-through" : ""}`}
+                    >
+                      {regionName}
+                    </span>
+                    {shouldShow && regionData && (
+                      <span className="text-xs text-gray-500">
+                        {activeTab === "hospitals"
+                          ? `${regionData.hospitals.toLocaleString()} hospitais`
+                          : `${regionData.beds.toLocaleString()} leitos`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )
             })}
