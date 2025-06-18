@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Layout from "@/components/layout"
-import RegionalMap from "@/components/regional-map"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import BrazilMapGeolocation from "@/components/brazil-map-geolocation"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { regionalData } from "@/lib/regional-map-data"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -35,14 +35,8 @@ export default function MapPageClient() {
     switch (activeTab) {
       case "hospitals":
         return 3500
-      case "doctors":
-        return 200000
       case "beds":
         return 350000
-      case "equipment":
-        return 500
-      case "access":
-        return 100
       default:
         return 100
     }
@@ -91,17 +85,8 @@ export default function MapPageClient() {
         case "hospitals":
           valueToCompare = region.hospitals
           break
-        case "doctors":
-          valueToCompare = region.doctors
-          break
         case "beds":
           valueToCompare = region.beds
-          break
-        case "equipment":
-          valueToCompare = region.medicalEquipment?.mri || 0
-          break
-        case "access":
-          valueToCompare = region.urbanAccessIndex
           break
         default:
           valueToCompare = 0
@@ -122,7 +107,7 @@ export default function MapPageClient() {
   const maxFilterValue = getMaxFilterValue()
 
   // Handle tab change
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
     setActiveTab(value)
     // Reset filter value when changing tabs to avoid confusion
     setFilterValue(0)
@@ -156,12 +141,9 @@ export default function MapPageClient() {
         </div>
 
         <Tabs defaultValue="hospitals" value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-5 mb-4">
+          <TabsList className="grid grid-cols-2 mb-4">
             <TabsTrigger value="hospitals">Hospitais</TabsTrigger>
-            <TabsTrigger value="doctors">Médicos</TabsTrigger>
             <TabsTrigger value="beds">Leitos</TabsTrigger>
-            <TabsTrigger value="equipment">Equipamentos</TabsTrigger>
-            <TabsTrigger value="access">Acesso</TabsTrigger>
           </TabsList>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -224,15 +206,12 @@ export default function MapPageClient() {
 
                   {filterType !== "none" && (
                     <div>
-                      <label className="text-sm font-medium mb-1 block">
-                        Valor: {filterValue.toLocaleString()}
-                        {activeTab === "access" ? "%" : ""}
-                      </label>
+                      <label className="text-sm font-medium mb-1 block">Valor: {filterValue.toLocaleString()}</label>
                       <Slider
                         value={[filterValue]}
                         min={0}
                         max={maxFilterValue}
-                        step={activeTab === "access" ? 1 : 10}
+                        step={10}
                         onValueChange={(value) => setFilterValue(value[0])}
                       />
                     </div>
@@ -250,13 +229,25 @@ export default function MapPageClient() {
               </div>
 
               {/* Map Component */}
-              <RegionalMap
-                selectedRegion={selectedRegion}
-                onRegionSelect={setSelectedRegion}
-                data={filteredData}
-                activeTab={activeTab}
-                viewMode={viewMode}
-              />
+              <TabsContent value="hospitals" className="mt-0">
+                <BrazilMapGeolocation
+                  selectedRegion={selectedRegion}
+                  onRegionSelect={setSelectedRegion}
+                  data={filteredData}
+                  activeTab="hospitals"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
+
+              <TabsContent value="beds" className="mt-0">
+                <BrazilMapGeolocation
+                  selectedRegion={selectedRegion}
+                  onRegionSelect={setSelectedRegion}
+                  data={filteredData}
+                  activeTab="beds"
+                  viewMode={viewMode}
+                />
+              </TabsContent>
             </div>
 
             <div>
@@ -268,24 +259,24 @@ export default function MapPageClient() {
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium">Total de Hospitais</h3>
+                      <h3 className="font-medium">Total de Hospitais Privados</h3>
                       <p className="text-2xl font-bold">8,457</p>
                     </div>
                     <div>
-                      <h3 className="font-medium">Médicos por 1.000 habitantes</h3>
-                      <p className="text-2xl font-bold">2.3</p>
+                      <h3 className="font-medium">Total de Leitos Privados</h3>
+                      <p className="text-2xl font-bold">245,832</p>
                     </div>
                     <div>
-                      <h3 className="font-medium">Leitos por 1.000 habitantes</h3>
-                      <p className="text-2xl font-bold">2.1</p>
+                      <h3 className="font-medium">Leitos por Hospital</h3>
+                      <p className="text-2xl font-bold">29.1</p>
                     </div>
                     <div>
-                      <h3 className="font-medium">Acesso a Saúde (Urbano)</h3>
-                      <p className="text-2xl font-bold">87.5%</p>
+                      <h3 className="font-medium">Estados</h3>
+                      <p className="text-2xl font-bold">27</p>
                     </div>
                     <div>
-                      <h3 className="font-medium">Acesso a Saúde (Rural)</h3>
-                      <p className="text-2xl font-bold">62.3%</p>
+                      <h3 className="font-medium">Regiões</h3>
+                      <p className="text-2xl font-bold">5</p>
                     </div>
                   </div>
                 </CardContent>
@@ -304,19 +295,13 @@ export default function MapPageClient() {
                       {selectedRegion && (
                         <>
                           <div>
-                            <h3 className="font-medium">Hospitais</h3>
+                            <h3 className="font-medium">Hospitais Privados</h3>
                             <p className="text-2xl font-bold">
                               {regionalData.find((r) => r.id === selectedRegion)?.hospitals.toLocaleString()}
                             </p>
                           </div>
                           <div>
-                            <h3 className="font-medium">Médicos</h3>
-                            <p className="text-2xl font-bold">
-                              {regionalData.find((r) => r.id === selectedRegion)?.doctors.toLocaleString()}
-                            </p>
-                          </div>
-                          <div>
-                            <h3 className="font-medium">Leitos</h3>
+                            <h3 className="font-medium">Leitos Privados</h3>
                             <p className="text-2xl font-bold">
                               {regionalData.find((r) => r.id === selectedRegion)?.beds.toLocaleString()}
                             </p>
