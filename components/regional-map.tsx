@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle, Download, Filter, Map } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import BrazilBubbleChart from "./brazil-bubble-chart"
-import BrazilRealMap from "./brazil-real-map"
+import BrazilMapGeolocation from "./brazil-map-geolocation"
 
 // Dados de exemplo para o mapa
 const regionData = [
@@ -225,7 +225,7 @@ export default function RegionalMap() {
               activeTab={activeTab}
             />
           ) : (
-            <BrazilRealMap
+            <BrazilMapGeolocation
               selectedRegion={selectedRegion}
               onRegionSelect={handleRegionSelect}
               data={regionData}
