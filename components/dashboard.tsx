@@ -70,7 +70,7 @@ const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
-  const [selectedState, setSelectedState] = useState<string>("acre") // Começar com Acre como na imagem
+  const [selectedState, setSelectedState] = useState<string>("all") // Iniciar com visão nacional
   const [stateData, setStateData] = useState<any>(null)
   const [allStates, setAllStates] = useState<any[]>([])
   const [nationalData, setNationalData] = useState<any>(null)
@@ -97,8 +97,8 @@ export default function Dashboard() {
       setNationalData(nationalStats)
       setRegionalData(Object.values(regionalStats))
 
-      // Carregar dados do estado selecionado
-      if (selectedState) {
+      // Carregar dados do estado selecionado (se não for "all")
+      if (selectedState !== "all") {
         const stateChartData = getStateChartData(selectedState)
         setStateData(stateChartData)
       }
@@ -111,7 +111,7 @@ export default function Dashboard() {
 
   // Atualizar dados quando o estado selecionado mudar
   useEffect(() => {
-    if (selectedState) {
+    if (selectedState !== "all") {
       const stateChartData = getStateChartData(selectedState)
       setStateData(stateChartData)
     }
@@ -121,16 +121,13 @@ export default function Dashboard() {
     fetchData()
   }, [])
 
-  if (loading || !stateData) {
+  if (loading) {
     return (
       <div className="flex h-[600px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
-
-  // Preparar dados para os gráficos
-  const timeSeriesData = generateTimeSeriesData(stateData.hospitals)
 
   // Preparar dados para gráficos nacionais
   const nationalChartData = regionalData.map((region) => ({
@@ -153,7 +150,7 @@ export default function Dashboard() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Dashboard - {selectedState === "all" ? "Brasil" : stateData.name}
+            Dashboard - {selectedState === "all" ? "Brasil" : stateData?.name}
           </h1>
           <p className="text-muted-foreground">Análise da infraestrutura hospitalar brasileira - Dados de 2024</p>
         </div>
@@ -230,7 +227,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          {/* Gráficos Nacionais - Usando gráficos de barras simples */}
+          {/* Gráficos Nacionais */}
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
@@ -328,168 +325,170 @@ export default function Dashboard() {
           </div>
         </div>
       ) : (
-        // Visão por Estado - Layout inspirado na imagem
-        <div className="grid gap-6">
-          {/* Primeira linha: Mapa + Métricas + Série temporal */}
-          <div className="grid gap-6 lg:grid-cols-9">
-            {/* Métricas principais */}
-            <div className="lg:col-span-3 space-y-4">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold text-orange-600">{stateData.hospitals}</div>
-                  <div className="text-sm text-muted-foreground">hospitais privados - 2024</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold text-blue-600">{stateData.beds.toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">leitos privados - 2024</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <div className="text-3xl font-bold text-green-600">{stateData.bedsPerThousand.toFixed(1)}</div>
-                  <div className="text-sm text-muted-foreground">leitos/1.000 hab - 2024</div>
+        // Visão por Estado
+        stateData && (
+          <div className="grid gap-6">
+            {/* Primeira linha: Métricas + Série temporal */}
+            <div className="grid gap-6 lg:grid-cols-9">
+              {/* Métricas principais */}
+              <div className="lg:col-span-3 space-y-4">
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-3xl font-bold text-orange-600">{stateData.hospitals}</div>
+                    <div className="text-sm text-muted-foreground">hospitais privados - 2024</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-3xl font-bold text-blue-600">{stateData.beds.toLocaleString()}</div>
+                    <div className="text-sm text-muted-foreground">leitos privados - 2024</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 text-center">
+                    <div className="text-3xl font-bold text-green-600">{stateData.bedsPerThousand.toFixed(1)}</div>
+                    <div className="text-sm text-muted-foreground">leitos/1.000 hab - 2024</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Série temporal */}
+              <Card className="lg:col-span-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">Série Histórica - 2010-2024</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[250px] flex items-end justify-between gap-1 p-4">
+                    {generateTimeSeriesData(stateData.hospitals).map((item, index) => (
+                      <div key={item.year} className="flex flex-col items-center gap-1">
+                        <div
+                          className="bg-blue-500 w-4 rounded-t"
+                          style={{
+                            height: `${(item.value / Math.max(...generateTimeSeriesData(stateData.hospitals).map((d) => d.value))) * 200}px`,
+                          }}
+                        ></div>
+                        <span className="text-xs text-muted-foreground transform -rotate-45">{item.year}</span>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Série temporal */}
-            <Card className="lg:col-span-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Série Histórica - 2010-2024</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[250px] flex items-end justify-between gap-1 p-4">
-                  {timeSeriesData.map((item, index) => (
-                    <div key={item.year} className="flex flex-col items-center gap-1">
-                      <div
-                        className="bg-blue-500 w-4 rounded-t"
-                        style={{
-                          height: `${(item.value / Math.max(...timeSeriesData.map((d) => d.value))) * 200}px`,
-                        }}
-                      ></div>
-                      <span className="text-xs text-muted-foreground transform -rotate-45">{item.year}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Segunda linha: Gráficos de pizza */}
+            <div className="grid gap-4 md:grid-cols-5">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">por localização</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SimplePieChart data={stateData.locationDistribution} colors={COLORS} />
+                  <div className="mt-2 space-y-1">
+                    {stateData.locationDistribution.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span>
+                          {item.name}: {item.value}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">por porte populacional</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SimplePieChart data={stateData.populationDistribution} colors={COLORS} />
+                  <div className="mt-2 space-y-1">
+                    {stateData.populationDistribution.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span>
+                          {item.name}: {item.value}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">por porte hospitalar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SimplePieChart data={stateData.hospitalSizeDistribution} colors={COLORS} />
+                  <div className="mt-2 space-y-1">
+                    {stateData.hospitalSizeDistribution.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span>
+                          {item.name}: {item.value}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">por tipo de hospital</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SimplePieChart data={stateData.hospitalTypeDistribution} colors={COLORS} />
+                  <div className="mt-2 space-y-1">
+                    {stateData.hospitalTypeDistribution.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span>
+                          {item.name}: {item.value}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">por tipo de atendimento</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <SimplePieChart data={stateData.serviceTypeDistribution} colors={COLORS} />
+                  <div className="mt-2 space-y-1">
+                    {stateData.serviceTypeDistribution.map((item, index) => (
+                      <div key={item.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-sm"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        ></div>
+                        <span>
+                          {item.name}: {item.value}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-
-          {/* Segunda linha: Gráficos de pizza */}
-          <div className="grid gap-4 md:grid-cols-5">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">por localização</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SimplePieChart data={stateData.locationDistribution} colors={COLORS} />
-                <div className="mt-2 space-y-1">
-                  {stateData.locationDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span>
-                        {item.name}: {item.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">por porte populacional</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SimplePieChart data={stateData.populationDistribution} colors={COLORS} />
-                <div className="mt-2 space-y-1">
-                  {stateData.populationDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span>
-                        {item.name}: {item.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">por porte hospitalar</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SimplePieChart data={stateData.hospitalSizeDistribution} colors={COLORS} />
-                <div className="mt-2 space-y-1">
-                  {stateData.hospitalSizeDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span>
-                        {item.name}: {item.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">por tipo de hospital</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SimplePieChart data={stateData.hospitalTypeDistribution} colors={COLORS} />
-                <div className="mt-2 space-y-1">
-                  {stateData.hospitalTypeDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span>
-                        {item.name}: {item.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">por tipo de atendimento</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <SimplePieChart data={stateData.serviceTypeDistribution} colors={COLORS} />
-                <div className="mt-2 space-y-1">
-                  {stateData.serviceTypeDistribution.map((item, index) => (
-                    <div key={item.name} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-sm"
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      ></div>
-                      <span>
-                        {item.name}: {item.value}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        )
       )}
     </div>
   )

@@ -8,9 +8,9 @@ import { onAuthStateChanged } from "firebase/auth"
 import { auth, isFirebaseInitialized } from "@/lib/firebase"
 import { Loader2, BarChart2, Map, LogOut, AlertTriangle, Globe, Building2, Database, Lock, X, Menu } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AuthProvider, useAuth } from "@/contexts/auth-context"
+import { useAuth } from "@/contexts/auth-context"
 
-function LayoutContent({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -192,17 +192,6 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
         {/* Main content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          {!isFirebaseInitialized() && (
-            <Alert className="mb-4">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Firebase Não Disponível</AlertTitle>
-              <AlertDescription>
-                Os serviços do Firebase não estão disponíveis. O dashboard está rodando em modo de demonstração com
-                dados de exemplo.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {authError && (
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
@@ -215,13 +204,5 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
-  )
-}
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthProvider>
-      <LayoutContent>{children}</LayoutContent>
-    </AuthProvider>
   )
 }
