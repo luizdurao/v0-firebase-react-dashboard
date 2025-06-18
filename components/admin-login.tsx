@@ -2,37 +2,40 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Loader2, AlertTriangle, Lock, Info } from "lucide-react"
+import { Loader2, AlertTriangle, Lock } from "lucide-react"
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [showTestCredentials, setShowTestCredentials] = useState(false)
   const { login, error, loading, isAdmin } = useAuth()
   const router = useRouter()
 
-  // Preencher com credenciais de teste para facilitar o desenvolvimento
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      setEmail("admin@saude.gov.br")
-      setPassword("admin123")
-    }
-  }, [])
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      await login(email, password)
-    } catch (err) {
-      console.error("Erro ao fazer login:", err)
+
+    // Verificar credenciais específicas
+    if (email === "luiz.durao" && password === "CNS@2025") {
+      try {
+        // Simular login bem-sucedido para credenciais específicas
+        await login("admin@saude.gov.br", "admin123")
+      } catch (err) {
+        console.error("Erro ao fazer login:", err)
+      }
+    } else {
+      // Tentar login normal para outras credenciais
+      try {
+        await login(email, password)
+      } catch (err) {
+        console.error("Erro ao fazer login:", err)
+      }
     }
   }
 
@@ -74,27 +77,15 @@ export default function AdminLogin() {
             </Alert>
           )}
 
-          {showTestCredentials && (
-            <Alert className="mb-4">
-              <Info className="h-4 w-4" />
-              <AlertTitle>Credenciais de teste</AlertTitle>
-              <AlertDescription>
-                Email: admin@saude.gov.br
-                <br />
-                Senha: admin123
-              </AlertDescription>
-            </Alert>
-          )}
-
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Usuário</Label>
               <Input
                 id="email"
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@exemplo.com"
+                placeholder="Digite seu usuário"
                 required
               />
             </div>
@@ -115,15 +106,6 @@ export default function AdminLogin() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex flex-col items-start">
-          <Button
-            variant="link"
-            className="p-0 h-auto text-sm text-muted-foreground"
-            onClick={() => setShowTestCredentials(!showTestCredentials)}
-          >
-            {showTestCredentials ? "Ocultar credenciais de teste" : "Mostrar credenciais de teste"}
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   )

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps"
 import { Tooltip } from "react-tooltip"
 import { Loader2 } from "lucide-react"
+import { loadRealHospitalData } from "@/lib/real-data-processor"
 
 // URL do GeoJSON oficial do Brasil com estados
 const BRAZIL_GEOJSON =
@@ -45,6 +46,37 @@ const stateToRegion = {
   SC: "south",
 }
 
+// Mapeamento de siglas para nomes completos
+const stateNames = {
+  AC: "Acre",
+  AL: "Alagoas",
+  AP: "Amapá",
+  AM: "Amazonas",
+  BA: "Bahia",
+  CE: "Ceará",
+  DF: "Distrito Federal",
+  ES: "Espírito Santo",
+  GO: "Goiás",
+  MA: "Maranhão",
+  MT: "Mato Grosso",
+  MS: "Mato Grosso do Sul",
+  MG: "Minas Gerais",
+  PA: "Pará",
+  PB: "Paraíba",
+  PR: "Paraná",
+  PE: "Pernambuco",
+  PI: "Piauí",
+  RJ: "Rio de Janeiro",
+  RN: "Rio Grande do Norte",
+  RS: "Rio Grande do Sul",
+  RO: "Rondônia",
+  RR: "Roraima",
+  SC: "Santa Catarina",
+  SP: "São Paulo",
+  SE: "Sergipe",
+  TO: "Tocantins",
+}
+
 // Cores das regiões
 const regionColors = {
   north: "#0088FE",
@@ -63,31 +95,36 @@ interface BrazilMapGeolocationProps {
 
 const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab }: BrazilMapGeolocationProps) => {
   const [geoData, setGeoData] = useState<any>(null)
+  const [hospitalData, setHospitalData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchGeoData = async () => {
+    const fetchData = async () => {
       try {
-        console.log("Carregando dados geográficos do Brasil...")
-        const response = await fetch(BRAZIL_GEOJSON)
+        console.log("Carregando dados geográficos e hospitalares...")
 
-        if (!response.ok) {
-          throw new Error(`Erro HTTP: ${response.status}`)
+        // Carregar dados geográficos
+        const geoResponse = await fetch(BRAZIL_GEOJSON)
+        if (!geoResponse.ok) {
+          throw new Error(`Erro HTTP: ${geoResponse.status}`)
         }
+        const geoData = await geoResponse.json()
 
-        const data = await response.json()
-        console.log("Dados geográficos carregados:", data)
-        setGeoData(data)
+        // Carregar dados hospitalares
+        const hospitalData = await loadRealHospitalData()
+
+        setGeoData(geoData)
+        setHospitalData(hospitalData)
         setLoading(false)
       } catch (error) {
-        console.error("Erro ao carregar dados geográficos:", error)
-        setError(`Erro ao carregar mapa: ${error.message}`)
+        console.error("Erro ao carregar dados:", error)
+        setError(`Erro ao carregar dados: ${error.message}`)
         setLoading(false)
       }
     }
 
-    fetchGeoData()
+    fetchData()
   }, [])
 
   const getStateColor = (geo) => {
@@ -110,33 +147,44 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
   }
 
   const generateTooltipContent = (geo) => {
-    if (!geo?.properties) return "Dados não disponíveis"
+    if (!geo?.properties || !hospitalData) return "Dados não disponíveis"
 
     const stateCode = geo.properties.sigla || geo.properties.SIGLA
-    const stateName = geo.properties.name || geo.properties.nome || geo.properties.NAME || stateCode
+    const stateName = stateNames[stateCode] || stateCode
     const regionId = stateToRegion[stateCode]
 
     if (!regionId) return `${stateName}: Região não identificada`
 
-    const regionData = data.find((r) => r.id === regionId)
-    if (!regionData) return `${stateName}: Sem dados disponíveis`
+    // Buscar dados reais do estado
+    const stateData = hospitalData[stateName]
+    if (!stateData) return `${stateName}: Sem dados disponíveis`
 
-    const regionName = regionData.name
-    const hospitals = regionData.hospitals || regionData.healthMetrics?.hospitals?.total || "N/A"
-    const doctors = regionData.doctors || regionData.healthMetrics?.doctors?.total || "N/A"
-    const beds = regionData.beds || regionData.healthMetrics?.beds?.total || "N/A"
+    const regionName =
+      {
+        north: "Norte",
+        northeast: "Nordeste",
+        "central-west": "Centro-Oeste",
+        southeast: "Sudeste",
+        south: "Sul",
+      }[regionId] || regionId
 
     return `
-      <div class="p-3 bg-white rounded-lg shadow-lg border">
+      <div class="p-3 bg-white rounded-lg shadow-lg border max-w-xs">
         <div class="font-bold text-lg mb-2">${stateName}</div>
         <div class="text-sm text-gray-600 mb-2">Região: ${regionName}</div>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div><strong>Hospitais:</strong></div>
-          <div>${typeof hospitals === "number" ? hospitals.toLocaleString() : hospitals}</div>
-          <div><strong>Médicos:</strong></div>
-          <div>${typeof doctors === "number" ? doctors.toLocaleString() : doctors}</div>
-          <div><strong>Leitos:</strong></div>
-          <div>${typeof beds === "number" ? beds.toLocaleString() : beds}</div>
+        <div class="space-y-1 text-sm">
+          <div class="flex justify-between">
+            <span><strong>Hospitais Privados:</strong></span>
+            <span>${stateData.Hospitais_Privados_2024.toLocaleString()}</span>
+          </div>
+          <div class="flex justify-between">
+            <span><strong>Leitos Privados:</strong></span>
+            <span>${stateData.Leitos_Privados_2024.toLocaleString()}</span>
+          </div>
+          <div class="flex justify-between">
+            <span><strong>Leitos/Hospital:</strong></span>
+            <span>${Math.round(stateData.Leitos_Privados_2024 / stateData.Hospitais_Privados_2024)}</span>
+          </div>
         </div>
       </div>
     `
@@ -164,7 +212,7 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     )
   }
 
-  if (!geoData) {
+  if (!geoData || !hospitalData) {
     return (
       <div className="flex h-[500px] w-full items-center justify-center bg-gray-50 rounded-lg">
         <p className="text-gray-600">Dados do mapa não disponíveis</p>
@@ -176,16 +224,7 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
     <div className="w-full bg-white rounded-lg shadow-sm border">
       <div className="p-4">
         <h3 className="text-lg font-semibold mb-4 text-center">
-          Mapa do Brasil -{" "}
-          {activeTab === "hospitals"
-            ? "Hospitais"
-            : activeTab === "doctors"
-              ? "Médicos"
-              : activeTab === "beds"
-                ? "Leitos"
-                : activeTab === "equipment"
-                  ? "Equipamentos"
-                  : "Acesso à Saúde"}
+          Mapa do Brasil - {activeTab === "hospitals" ? "Hospitais Privados" : "Leitos Privados"} (2024)
         </h3>
 
         <div className="aspect-[4/3] w-full">
@@ -262,8 +301,14 @@ const BrazilMapGeolocation = ({ selectedRegion, onRegionSelect, data, activeTab 
           <h4 className="font-medium mb-3 text-center">Regiões do Brasil</h4>
           <div className="flex flex-wrap justify-center gap-4">
             {Object.entries(regionColors).map(([regionId, color]) => {
-              const regionData = data.find((r) => r.id === regionId)
-              const regionName = regionData?.name || regionId
+              const regionNames = {
+                north: "Norte",
+                northeast: "Nordeste",
+                "central-west": "Centro-Oeste",
+                southeast: "Sudeste",
+                south: "Sul",
+              }
+              const regionName = regionNames[regionId] || regionId
 
               return (
                 <div

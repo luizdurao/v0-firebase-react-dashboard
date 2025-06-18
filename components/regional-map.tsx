@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,130 +8,43 @@ import { AlertCircle, Download, Filter, Map } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import BrazilBubbleChart from "./brazil-bubble-chart"
 import BrazilMapGeolocation from "./brazil-map-geolocation"
-
-// Dados de exemplo para o mapa
-const regionData = [
-  {
-    id: "north",
-    name: "Norte",
-    population: 18.9,
-    area: 3853676.9,
-    hospitals: 447,
-    doctors: 42000,
-    beds: 52000,
-    urbanAccessIndex: 72.5,
-    ruralAccessIndex: 38.2,
-    healthMetrics: {
-      hospitals: { total: 447, public: 310, private: 137 },
-      doctors: { total: 42000, perThousand: 2.1 },
-      beds: { total: 52000, perThousand: 2.6 },
-      access: { urban: 72.5, rural: 38.2 },
-    },
-    medicalEquipment: {
-      mri: 89,
-      ct: 124,
-      xray: 1240,
-      ultrasound: 980,
-    },
-  },
-  {
-    id: "northeast",
-    name: "Nordeste",
-    population: 57.4,
-    area: 1554291.6,
-    hospitals: 1083,
-    doctors: 134000,
-    beds: 156000,
-    urbanAccessIndex: 78.3,
-    ruralAccessIndex: 42.7,
-    healthMetrics: {
-      hospitals: { total: 1083, public: 720, private: 363 },
-      doctors: { total: 134000, perThousand: 2.3 },
-      beds: { total: 156000, perThousand: 2.7 },
-      access: { urban: 78.3, rural: 42.7 },
-    },
-    medicalEquipment: {
-      mri: 210,
-      ct: 315,
-      xray: 3200,
-      ultrasound: 2800,
-    },
-  },
-  {
-    id: "central-west",
-    name: "Centro-Oeste",
-    population: 16.7,
-    area: 1606403.5,
-    hospitals: 548,
-    doctors: 58000,
-    beds: 62000,
-    urbanAccessIndex: 85.2,
-    ruralAccessIndex: 51.8,
-    healthMetrics: {
-      hospitals: { total: 548, public: 320, private: 228 },
-      doctors: { total: 58000, perThousand: 3.5 },
-      beds: { total: 62000, perThousand: 3.7 },
-      access: { urban: 85.2, rural: 51.8 },
-    },
-    medicalEquipment: {
-      mri: 145,
-      ct: 198,
-      xray: 1580,
-      ultrasound: 1320,
-    },
-  },
-  {
-    id: "southeast",
-    name: "Sudeste",
-    population: 89.6,
-    area: 924608.9,
-    hospitals: 2184,
-    doctors: 312000,
-    beds: 340000,
-    urbanAccessIndex: 92.1,
-    ruralAccessIndex: 68.4,
-    healthMetrics: {
-      hospitals: { total: 2184, public: 1250, private: 934 },
-      doctors: { total: 312000, perThousand: 3.5 },
-      beds: { total: 340000, perThousand: 3.8 },
-      access: { urban: 92.1, rural: 68.4 },
-    },
-    medicalEquipment: {
-      mri: 580,
-      ct: 720,
-      xray: 6800,
-      ultrasound: 5900,
-    },
-  },
-  {
-    id: "south",
-    name: "Sul",
-    population: 30.4,
-    area: 576783.8,
-    hospitals: 1042,
-    doctors: 124000,
-    beds: 136000,
-    urbanAccessIndex: 89.7,
-    ruralAccessIndex: 64.3,
-    healthMetrics: {
-      hospitals: { total: 1042, public: 580, private: 462 },
-      doctors: { total: 124000, perThousand: 4.1 },
-      beds: { total: 136000, perThousand: 4.5 },
-      access: { urban: 89.7, rural: 64.3 },
-    },
-    medicalEquipment: {
-      mri: 320,
-      ct: 410,
-      xray: 3600,
-      ultrasound: 3100,
-    },
-  },
-]
+import { loadRealHospitalData, calculateRegionalStats } from "@/lib/real-data-processor"
 
 export default function RegionalMap() {
   const [selectedRegion, setSelectedRegion] = useState("all")
   const [activeTab, setActiveTab] = useState("hospitals")
   const [viewMode, setViewMode] = useState<"bubble" | "map">("map")
+  const [regionData, setRegionData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const hospitalData = await loadRealHospitalData()
+        const regionalStats = calculateRegionalStats(hospitalData)
+
+        // Converter dados regionais para o formato esperado
+        const formattedData = Object.values(regionalStats).map((region: any) => ({
+          id: region.id,
+          name: region.name,
+          hospitals: region.hospitals,
+          beds: region.totalBeds,
+          states: region.states,
+          // Calcular médias baseadas nos dados reais
+          averageBedsPerHospital: Math.round(region.totalBeds / region.hospitals),
+          stateCount: region.states.length,
+        }))
+
+        setRegionData(formattedData)
+        setLoading(false)
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
 
   const handleRegionSelect = (regionId: string) => {
     setSelectedRegion(regionId === selectedRegion ? "all" : regionId)
@@ -139,12 +52,25 @@ export default function RegionalMap() {
 
   const filteredData = selectedRegion === "all" ? regionData : regionData.filter((r) => r.id === selectedRegion)
 
+  if (loading) {
+    return (
+      <Card className="col-span-3">
+        <CardContent className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Carregando dados regionais...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="col-span-3">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Mapa Regional de Saúde</CardTitle>
-          <CardDescription>Distribuição de recursos de saúde por região</CardDescription>
+          <CardDescription>Distribuição de recursos de saúde por região do Brasil</CardDescription>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setViewMode(viewMode === "bubble" ? "map" : "bubble")}>
@@ -163,58 +89,55 @@ export default function RegionalMap() {
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="hospitals" className="mb-4" onValueChange={(value) => setActiveTab(value)}>
-          <TabsList className="grid grid-cols-5 mb-4">
-            <TabsTrigger value="hospitals">Hospitais</TabsTrigger>
-            <TabsTrigger value="doctors">Médicos</TabsTrigger>
-            <TabsTrigger value="beds">Leitos</TabsTrigger>
-            <TabsTrigger value="equipment">Equipamentos</TabsTrigger>
-            <TabsTrigger value="access">Acesso</TabsTrigger>
+          <TabsList className="grid grid-cols-2 mb-4">
+            <TabsTrigger value="hospitals">Hospitais Privados</TabsTrigger>
+            <TabsTrigger value="beds">Leitos Privados</TabsTrigger>
           </TabsList>
 
           <TabsContent value="hospitals" className="mt-0">
             <Alert className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Hospitais</AlertTitle>
-              <AlertDescription>Visualize a distribuição de hospitais públicos e privados por região.</AlertDescription>
-            </Alert>
-          </TabsContent>
-
-          <TabsContent value="doctors" className="mt-0">
-            <Alert className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Médicos</AlertTitle>
-              <AlertDescription>Visualize a distribuição de médicos e a proporção por mil habitantes.</AlertDescription>
+              <AlertTitle>Hospitais Privados</AlertTitle>
+              <AlertDescription>
+                Visualize a distribuição de hospitais privados por região do Brasil (dados de 2024).
+              </AlertDescription>
             </Alert>
           </TabsContent>
 
           <TabsContent value="beds" className="mt-0">
             <Alert className="mb-4">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Leitos</AlertTitle>
+              <AlertTitle>Leitos Privados</AlertTitle>
               <AlertDescription>
-                Visualize a distribuição de leitos hospitalares e a proporção por mil habitantes.
+                Visualize a distribuição de leitos em hospitais privados por região do Brasil (dados de 2024).
               </AlertDescription>
-            </Alert>
-          </TabsContent>
-
-          <TabsContent value="equipment" className="mt-0">
-            <Alert className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Equipamentos</AlertTitle>
-              <AlertDescription>
-                Visualize a distribuição de equipamentos médicos como ressonância magnética e tomografia.
-              </AlertDescription>
-            </Alert>
-          </TabsContent>
-
-          <TabsContent value="access" className="mt-0">
-            <Alert className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Acesso à Saúde</AlertTitle>
-              <AlertDescription>Visualize o índice de acesso à saúde em áreas urbanas e rurais.</AlertDescription>
             </Alert>
           </TabsContent>
         </Tabs>
+
+        {/* Estatísticas Resumo */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
+              {regionData.reduce((sum, region) => sum + region.hospitals, 0).toLocaleString()}
+            </div>
+            <div className="text-sm text-blue-600">Total de Hospitais</div>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {regionData.reduce((sum, region) => sum + region.beds, 0).toLocaleString()}
+            </div>
+            <div className="text-sm text-green-600">Total de Leitos</div>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">5</div>
+            <div className="text-sm text-purple-600">Regiões</div>
+          </div>
+          <div className="bg-orange-50 p-4 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">27</div>
+            <div className="text-sm text-orange-600">Estados + DF</div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 gap-4">
           {viewMode === "bubble" ? (
@@ -232,6 +155,35 @@ export default function RegionalMap() {
               activeTab={activeTab}
             />
           )}
+        </div>
+
+        {/* Tabela de Dados Regionais */}
+        <div className="mt-6">
+          <h4 className="text-lg font-semibold mb-4">Dados por Região</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-300 px-4 py-2 text-left">Região</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">Estados</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">Hospitais</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">Leitos</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">Leitos/Hospital</th>
+                </tr>
+              </thead>
+              <tbody>
+                {regionData.map((region) => (
+                  <tr key={region.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-2 font-medium">{region.name}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{region.stateCount}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{region.hospitals.toLocaleString()}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{region.beds.toLocaleString()}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-right">{region.averageBedsPerHospital}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </CardContent>
     </Card>

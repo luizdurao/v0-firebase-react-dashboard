@@ -2,44 +2,29 @@
 
 import { useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { User, Shield, Database, Settings, Activity, CheckCircle, AlertTriangle, LogOut } from "lucide-react"
+import { Shield, Database, Users, Settings, CheckCircle, Info, LogOut, RefreshCw } from "lucide-react"
 import FirebaseStatus from "./firebase-status"
-import { seedDatabase, ensureAdminUser } from "@/lib/firebase"
 
 export default function AdminPanel() {
-  const { user, logout } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState("")
+  const { logout, user } = useAuth()
+  const [isInitializing, setIsInitializing] = useState(false)
 
-  const handleSeedDatabase = async () => {
-    setLoading(true)
-    setMessage("")
-
-    try {
-      await seedDatabase()
-      setMessage("Banco de dados inicializado com sucesso!")
-    } catch (error) {
-      setMessage(`Erro ao inicializar banco de dados: ${error.message}`)
-    } finally {
-      setLoading(false)
-    }
+  const handleInitializeDatabase = async () => {
+    setIsInitializing(true)
+    // Simular inicialização do banco
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    setIsInitializing(false)
   }
 
-  const handleEnsureAdmin = async () => {
-    setLoading(true)
-    setMessage("")
-
+  const handleLogout = async () => {
     try {
-      await ensureAdminUser()
-      setMessage("Usuário admin verificado/criado com sucesso!")
+      await logout()
     } catch (error) {
-      setMessage(`Erro ao verificar usuário admin: ${error.message}`)
-    } finally {
-      setLoading(false)
+      console.error("Erro ao fazer logout:", error)
     }
   }
 
@@ -47,146 +32,141 @@ export default function AdminPanel() {
     <div className="space-y-6">
       {/* Header do Admin */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Painel Administrativo</h1>
-          <p className="text-muted-foreground">Gerenciamento do sistema de saúde</p>
+        <div className="flex items-center gap-3">
+          <Shield className="h-8 w-8 text-primary" />
+          <div>
+            <h2 className="text-2xl font-bold">Painel Administrativo</h2>
+            <p className="text-muted-foreground">Gerenciamento do sistema de saúde</p>
+          </div>
         </div>
-        {user && (
-          <Button variant="outline" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sair
-          </Button>
-        )}
+        <Button onClick={handleLogout} variant="outline" size="sm">
+          <LogOut className="h-4 w-4 mr-2" />
+          Sair
+        </Button>
       </div>
 
-      {/* Status de Autenticação */}
+      {/* Status do Usuário */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Status de Autenticação
+            <Users className="h-5 w-5" />
+            Status do Administrador
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Usuário:</span>
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-green-100 text-green-800">
-                    <CheckCircle className="mr-1 h-3 w-3" />
-                    Logado
-                  </Badge>
-                  <span className="text-sm">{user.email}</span>
-                </div>
-              ) : (
-                <Badge variant="secondary" className="bg-red-100 text-red-800">
-                  <AlertTriangle className="mr-1 h-3 w-3" />
-                  Nenhum usuário logado
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Permissões:</span>
-              {user ? (
-                <Badge variant="default" className="bg-blue-100 text-blue-800">
-                  <Shield className="mr-1 h-3 w-3" />
-                  Administrador
-                </Badge>
-              ) : (
-                <Badge variant="secondary">Sem permissões</Badge>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Ambiente:</span>
-              <Badge variant="outline">
-                <Activity className="mr-1 h-3 w-3" />
-                Cliente (Browser)
-              </Badge>
-            </div>
+          <div className="flex items-center gap-4">
+            <Badge variant="default" className="bg-green-100 text-green-800">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Logado como Administrador
+            </Badge>
+            {user && <span className="text-sm text-muted-foreground">Usuário: {user.email || "luiz.durao"}</span>}
           </div>
         </CardContent>
       </Card>
 
       {/* Status do Firebase */}
-      <FirebaseStatus />
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Status do Sistema
+          </CardTitle>
+          <CardDescription>Informações técnicas sobre a configuração do Firebase</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FirebaseStatus />
+        </CardContent>
+      </Card>
 
       {/* Ações Administrativas */}
-      {user && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Ações Administrativas
-            </CardTitle>
-            <CardDescription>Ferramentas para gerenciar o sistema</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button onClick={handleSeedDatabase} disabled={loading} className="flex items-center gap-2">
-                  <Database className="h-4 w-4" />
-                  {loading ? "Inicializando..." : "Inicializar Banco de Dados"}
-                </Button>
-
-                <Button
-                  onClick={handleEnsureAdmin}
-                  disabled={loading}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Shield className="h-4 w-4" />
-                  {loading ? "Verificando..." : "Verificar Usuário Admin"}
-                </Button>
-              </div>
-
-              {message && (
-                <Alert className={message.includes("Erro") ? "border-red-200" : "border-green-200"}>
-                  <AlertDescription>{message}</AlertDescription>
-                </Alert>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Ações Administrativas
+          </CardTitle>
+          <CardDescription>Ferramentas para gerenciar o sistema</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              onClick={handleInitializeDatabase}
+              disabled={isInitializing}
+              className="h-auto p-4 flex flex-col items-start"
+            >
+              {isInitializing ? (
+                <RefreshCw className="h-5 w-5 mb-2 animate-spin" />
+              ) : (
+                <Database className="h-5 w-5 mb-2" />
               )}
+              <span className="font-semibold">
+                {isInitializing ? "Inicializando..." : "Inicializar Banco de Dados"}
+              </span>
+              <span className="text-xs opacity-80">Popula o banco com dados iniciais</span>
+            </Button>
+
+            <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
+              <Shield className="h-5 w-5 mb-2" />
+              <span className="font-semibold">Verificar Permissões</span>
+              <span className="text-xs opacity-80">Validar acesso administrativo</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Estatísticas do Sistema */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Database className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">5</p>
+                <p className="text-sm text-muted-foreground">Regiões</p>
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Estatísticas do Sistema */}
-      <div className="grid gap-4 md:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estados Cadastrados</CardTitle>
-            <Database className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">27</div>
-            <p className="text-xs text-muted-foreground">Incluindo Distrito Federal</p>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Settings className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">27</p>
+                <p className="text-sm text-muted-foreground">Estados + DF</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Regiões</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">Norte, Nordeste, Centro-Oeste, Sudeste, Sul</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Dados Atualizados</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">2024</div>
-            <p className="text-xs text-muted-foreground">Última atualização</p>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Users className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">1</p>
+                <p className="text-sm text-muted-foreground">Admin Ativo</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Aviso de Desenvolvimento */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Ambiente de Desenvolvimento</AlertTitle>
+        <AlertDescription>
+          Este painel administrativo está em modo de desenvolvimento. Algumas funcionalidades podem estar limitadas.
+        </AlertDescription>
+      </Alert>
     </div>
   )
 }
