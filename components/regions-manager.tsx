@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { loadRealHospitalData, calculateRegionalStats } from "@/lib/real-data-processor"
+import { regionalHospitalData } from "@/lib/hospital-regional-data"
 
 export default function RegionsManager() {
   const [loading, setLoading] = useState(true)
@@ -20,26 +20,28 @@ export default function RegionsManager() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const realData = await loadRealHospitalData()
-      const regionalStats = calculateRegionalStats(realData)
-
-      // Converter para array e adicionar estatísticas
-      const regions = Object.values(regionalStats).map((region: any) => {
-        const avgBedsPerHospital = Math.round(region.totalBeds / region.hospitals)
-        const stateCount = region.states.length
-
-        return {
-          ...region,
-          avgBedsPerHospital,
-          stateCount,
-          bedsPerThousand: Math.round((region.totalBeds / getRegionPopulation(region.name)) * 10) / 10,
-        }
-      })
+      // Usar dados reais do CSV em vez de loadRealHospitalData
+      const regions = regionalHospitalData.map((region) => ({
+        id: region.id,
+        name: region.name,
+        hospitals: region.hospitais,
+        hospitalDistribution: region.distribuicaoHospitais,
+        beneficiaryDistribution: region.distribuicaoBeneficiarios,
+        nonProfitPercentage: region.semFinsLucrativos,
+        forProfitPercentage: region.comFinsLucrativos,
+        beds: region.leitos,
+        bedDistribution: region.distribuicaoLeitos,
+        bedBeneficiaryDistribution: region.distribuicaoLeitosBeneficiarios,
+        nonProfitBeds: region.leitosSemFinsLucrativos,
+        forProfitBeds: region.leitosComFinsLucrativos,
+        avgBedsPerHospital: Math.round(region.leitos / region.hospitais),
+        stateCount: getStateCountByRegion(region.id),
+      }))
 
       // Calcular totais
       const totals = {
         totalHospitals: regions.reduce((sum, r) => sum + r.hospitals, 0),
-        totalBeds: regions.reduce((sum, r) => sum + r.totalBeds, 0),
+        totalBeds: regions.reduce((sum, r) => sum + r.beds, 0),
         totalStates: regions.reduce((sum, r) => sum + r.stateCount, 0),
       }
 
@@ -65,6 +67,17 @@ export default function RegionsManager() {
       Sul: "bg-purple-100 text-purple-800 border-purple-200",
     }
     return colors[region as keyof typeof colors] || "bg-gray-100 text-gray-800 border-gray-200"
+  }
+
+  function getStateCountByRegion(regionId: string): number {
+    const stateCounts = {
+      north: 7, // AC, AM, AP, PA, RO, RR, TO
+      northeast: 9, // AL, BA, CE, MA, PB, PE, PI, RN, SE
+      "central-west": 4, // DF, GO, MT, MS
+      southeast: 4, // ES, MG, RJ, SP
+      south: 3, // PR, RS, SC
+    }
+    return stateCounts[regionId as keyof typeof stateCounts] || 0
   }
 
   // Função auxiliar para população regional (estimativa)
@@ -154,9 +167,15 @@ export default function RegionsManager() {
                   <TableHead>Região</TableHead>
                   <TableHead className="text-right">Estados</TableHead>
                   <TableHead className="text-right">Hospitais</TableHead>
+                  <TableHead className="text-right">Dist. Hosp. (%)</TableHead>
+                  <TableHead className="text-right">Benef. (%)</TableHead>
+                  <TableHead className="text-right">Sem Fins Lucr. (%)</TableHead>
+                  <TableHead className="text-right">Com Fins Lucr. (%)</TableHead>
                   <TableHead className="text-right">Leitos</TableHead>
-                  <TableHead className="text-right">Média Leitos/Hospital</TableHead>
-                  <TableHead className="text-right">Leitos/1000 hab</TableHead>
+                  <TableHead className="text-right">Dist. Leitos (%)</TableHead>
+                  <TableHead className="text-right">Benef. Leitos (%)</TableHead>
+                  <TableHead className="text-right">Leitos S/Lucro (%)</TableHead>
+                  <TableHead className="text-right">Leitos C/Lucro (%)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -169,10 +188,30 @@ export default function RegionsManager() {
                     </TableCell>
                     <TableCell className="text-right font-medium">{region.stateCount}</TableCell>
                     <TableCell className="text-right font-semibold">{region.hospitals.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{region.totalBeds.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">{region.avgBedsPerHospital}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="outline">{region.bedsPerThousand}</Badge>
+                      <Badge variant="outline">{region.hospitalDistribution}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">{region.beneficiaryDistribution}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge className="bg-green-100 text-green-800">{region.nonProfitPercentage}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge className="bg-blue-100 text-blue-800">{region.forProfitPercentage}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-semibold">{region.beds.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="outline">{region.bedDistribution}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary">{region.bedBeneficiaryDistribution}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge className="bg-green-100 text-green-800">{region.nonProfitBeds}%</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge className="bg-blue-100 text-blue-800">{region.forProfitBeds}%</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

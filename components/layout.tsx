@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { auth, isFirebaseInitialized } from "@/lib/firebase"
-import { Loader2, BarChart2, Map, LogOut, AlertTriangle, Globe, Building2, Database, Lock, X, Menu } from "lucide-react"
+import { Loader2, BarChart2, Map, LogOut, AlertTriangle, Globe, Database, Lock, X, Menu } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -78,7 +78,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigationLinks = [
     { href: "/", icon: <BarChart2 className="h-5 w-5" />, label: "Dashboard" },
     { href: "/regions", icon: <Globe className="h-5 w-5" />, label: "Regiões" },
-    { href: "/hospitals", icon: <Building2 className="h-5 w-5" />, label: "Hospitais" },
     { href: "/map", icon: <Map className="h-5 w-5" />, label: "Mapa Regional" },
   ]
 

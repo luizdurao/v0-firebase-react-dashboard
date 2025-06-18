@@ -6,12 +6,14 @@ import BrazilMapGeolocation from "@/components/brazil-map-geolocation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { regionalData } from "@/lib/regional-map-data"
+import { calculateFilteredHospitalStats } from "@/lib/hospital-regional-data"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
+import HospitalRegionalStats from "@/components/hospital-regional-stats"
 
 // Define regions for filtering
 const regions = [
@@ -24,7 +26,7 @@ const regions = [
 
 export default function MapPageClient() {
   const [selectedRegion, setSelectedRegion] = useState("all")
-  const [activeTab, setActiveTab] = useState("hospitals")
+  const [activeTab, setActiveTab] = useState("beds")
   const [filterType, setFilterType] = useState("none")
   const [filterValue, setFilterValue] = useState(0)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(regions.map((r) => r.id))
@@ -33,10 +35,10 @@ export default function MapPageClient() {
   // Filter thresholds based on the active tab
   const getMaxFilterValue = () => {
     switch (activeTab) {
-      case "hospitals":
-        return 3500
       case "beds":
-        return 350000
+        return 160000
+      case "hospitais-privados":
+        return 4000
       default:
         return 100
     }
@@ -82,9 +84,6 @@ export default function MapPageClient() {
       let valueToCompare = 0
 
       switch (activeTab) {
-        case "hospitals":
-          valueToCompare = region.hospitals
-          break
         case "beds":
           valueToCompare = region.beds
           break
@@ -113,6 +112,9 @@ export default function MapPageClient() {
     setFilterValue(0)
   }
 
+  // Get hospital stats for the new tab
+  const hospitalStats = calculateFilteredHospitalStats(selectedRegions)
+
   return (
     <Layout>
       <div className="container mx-auto py-6">
@@ -140,106 +142,97 @@ export default function MapPageClient() {
           </div>
         </div>
 
-        <Tabs defaultValue="hospitals" value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs defaultValue="beds" value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid grid-cols-2 mb-4">
-            <TabsTrigger value="hospitals">Hospitais</TabsTrigger>
             <TabsTrigger value="beds">Leitos</TabsTrigger>
+            <TabsTrigger value="hospitais-privados">Hospitais Privados</TabsTrigger>
           </TabsList>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
-              {/* Filter Controls */}
-              <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border">
-                <div className="flex justify-between items-center mb-3">
-                  <h2 className="text-lg font-medium">Filtrar Regiões</h2>
-                  <Button variant="outline" size="sm" onClick={resetFilters} className="hover:bg-gray-100">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Resetar Filtros
-                  </Button>
-                </div>
+              {/* Filter Controls - Only show for beds tab */}
+              {activeTab === "beds" && (
+                <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border">
+                  <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-lg font-medium">Filtrar Regiões</h2>
+                    <Button variant="outline" size="sm" onClick={resetFilters} className="hover:bg-gray-100">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Resetar Filtros
+                    </Button>
+                  </div>
 
-                {/* Region Filter */}
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium mb-2">Filtrar por Região</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="all-regions"
-                        checked={selectedRegions.length === regions.length}
-                        onCheckedChange={toggleAllRegions}
-                      />
-                      <Label htmlFor="all-regions" className="text-sm">
-                        Todas as Regiões
-                      </Label>
-                    </div>
-
-                    {regions.map((region) => (
-                      <div key={region.id} className="flex items-center space-x-2">
+                  {/* Region Filter */}
+                  <div className="mb-4">
+                    <h3 className="text-sm font-medium mb-2">Filtrar por Região</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="flex items-center space-x-2">
                         <Checkbox
-                          id={`region-${region.id}`}
-                          checked={selectedRegions.includes(region.id)}
-                          onCheckedChange={() => toggleRegion(region.id)}
+                          id="all-regions"
+                          checked={selectedRegions.length === regions.length}
+                          onCheckedChange={toggleAllRegions}
                         />
-                        <Label htmlFor={`region-${region.id}`} className="text-sm">
-                          {region.name}
+                        <Label htmlFor="all-regions" className="text-sm">
+                          Todas as Regiões
                         </Label>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Value Filter */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium mb-1 block">Filtro por Valor</label>
-                    <Select value={filterType} onValueChange={setFilterType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um filtro" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem Filtro</SelectItem>
-                        <SelectItem value="above">Acima do Valor</SelectItem>
-                        <SelectItem value="below">Abaixo do Valor</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {filterType !== "none" && (
-                    <div>
-                      <label className="text-sm font-medium mb-1 block">Valor: {filterValue.toLocaleString()}</label>
-                      <Slider
-                        value={[filterValue]}
-                        min={0}
-                        max={maxFilterValue}
-                        step={10}
-                        onValueChange={(value) => setFilterValue(value[0])}
-                      />
+                      {regions.map((region) => (
+                        <div key={region.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`region-${region.id}`}
+                            checked={selectedRegions.includes(region.id)}
+                            onCheckedChange={() => toggleRegion(region.id)}
+                          />
+                          <Label htmlFor={`region-${region.id}`} className="text-sm">
+                            {region.name}
+                          </Label>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                <div className="mt-3 text-sm">
-                  <span className="font-medium">Regiões exibidas:</span>{" "}
-                  {filteredData.length === 0
-                    ? "Nenhuma região corresponde aos filtros"
-                    : filteredData.length === regionalData.length
-                      ? "Todas as regiões"
-                      : `${filteredData.length} de ${regionalData.length} regiões`}
+                  {/* Value Filter */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-1 block">Filtro por Valor</label>
+                      <Select value={filterType} onValueChange={setFilterType}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um filtro" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Sem Filtro</SelectItem>
+                          <SelectItem value="above">Acima do Valor</SelectItem>
+                          <SelectItem value="below">Abaixo do Valor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {filterType !== "none" && (
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Valor: {filterValue.toLocaleString()}</label>
+                        <Slider
+                          value={[filterValue]}
+                          min={0}
+                          max={maxFilterValue}
+                          step={10}
+                          onValueChange={(value) => setFilterValue(value[0])}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 text-sm">
+                    <span className="font-medium">Regiões exibidas:</span>{" "}
+                    {filteredData.length === 0
+                      ? "Nenhuma região corresponde aos filtros"
+                      : filteredData.length === regionalData.length
+                        ? "Todas as regiões"
+                        : `${filteredData.length} de ${regionalData.length} regiões`}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Map Component */}
-              <TabsContent value="hospitals" className="mt-0">
-                <BrazilMapGeolocation
-                  selectedRegion={selectedRegion}
-                  onRegionSelect={setSelectedRegion}
-                  data={filteredData}
-                  activeTab="hospitals"
-                  viewMode={viewMode}
-                  filteredRegions={selectedRegions}
-                />
-              </TabsContent>
-
               <TabsContent value="beds" className="mt-0">
                 <BrazilMapGeolocation
                   selectedRegion={selectedRegion}
@@ -250,50 +243,84 @@ export default function MapPageClient() {
                   filteredRegions={selectedRegions}
                 />
               </TabsContent>
+
+              <TabsContent value="hospitais-privados" className="mt-0">
+                <HospitalRegionalStats filteredRegions={selectedRegions} />
+              </TabsContent>
             </div>
 
             <div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Estatísticas {selectedRegions.length < 5 ? "Filtradas" : "Nacionais"}</CardTitle>
-                  <CardDescription>
-                    {selectedRegions.length < 5
-                      ? `Dados das ${selectedRegions.length} regiões selecionadas`
-                      : "Visão geral dos recursos de saúde"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-medium">Total de Hospitais Privados</h3>
-                      <p className="text-2xl font-bold">
-                        {filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0).toLocaleString()}
-                      </p>
+              {/* Statistics Card */}
+              {activeTab === "hospitais-privados" ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Estatísticas {selectedRegions.length < 5 ? "Filtradas" : "Nacionais"}</CardTitle>
+                    <CardDescription>Hospitais privados - 2024</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium">Total de Hospitais Privados</h3>
+                        <p className="text-2xl font-bold">{hospitalStats.hospitais.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Total de Leitos Privados</h3>
+                        <p className="text-2xl font-bold">{hospitalStats.leitos.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Leitos por Hospital</h3>
+                        <p className="text-2xl font-bold">{hospitalStats.leitosPorHospital}</p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Regiões Selecionadas</h3>
+                        <p className="text-2xl font-bold">{hospitalStats.regioes}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">Total de Leitos Privados</h3>
-                      <p className="text-2xl font-bold">
-                        {filteredData.reduce((sum, region) => sum + (region.beds || 0), 0).toLocaleString()}
-                      </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Estatísticas {selectedRegions.length < 5 ? "Filtradas" : "Nacionais"}</CardTitle>
+                    <CardDescription>
+                      {selectedRegions.length < 5
+                        ? `Dados das ${selectedRegions.length} regiões selecionadas`
+                        : "Visão geral dos recursos de saúde"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium">Total de Hospitais Privados</h3>
+                        <p className="text-2xl font-bold">
+                          {filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Total de Leitos Privados</h3>
+                        <p className="text-2xl font-bold">
+                          {filteredData.reduce((sum, region) => sum + (region.beds || 0), 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Leitos por Hospital</h3>
+                        <p className="text-2xl font-bold">
+                          {filteredData.length > 0
+                            ? Math.round(
+                                filteredData.reduce((sum, region) => sum + (region.beds || 0), 0) /
+                                  filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0),
+                              )
+                            : 0}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="font-medium">Regiões Selecionadas</h3>
+                        <p className="text-2xl font-bold">{selectedRegions.length}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium">Leitos por Hospital</h3>
-                      <p className="text-2xl font-bold">
-                        {filteredData.length > 0
-                          ? Math.round(
-                              filteredData.reduce((sum, region) => sum + (region.beds || 0), 0) /
-                                filteredData.reduce((sum, region) => sum + (region.hospitals || 0), 0),
-                            )
-                          : 0}
-                      </p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Regiões Selecionadas</h3>
-                      <p className="text-2xl font-bold">{selectedRegions.length}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {selectedRegion !== "all" && (
                 <Card className="mt-4">
