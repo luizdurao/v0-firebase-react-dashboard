@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
-import DebugLeitos from "@/components/debug-leitos"
 import {
   Building2,
   MapPin,
@@ -22,13 +21,12 @@ import {
   AlertCircle,
   TrendingUp,
   Info,
-  Bug,
   Calendar,
   BarChart3,
   Loader2,
+  ListChecks,
 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
-import SimpleDataTest from "@/components/simple-data-test"
 
 interface HistoricoItem {
   ano: number
@@ -58,7 +56,7 @@ interface Hospital {
   [key: string]: any
 }
 
-interface YearlyStats {
+interface YearlyNationalStats {
   ano: number
   total: number
   publicos: number
@@ -69,15 +67,22 @@ interface YearlyStats {
   leitosSUS: number
 }
 
-const DEFAULT_CURRENT_YEAR_STATS: YearlyStats = {
+interface DetailedDataSummary {
+  ano: number
+  uf: string
+  totalHospitaisFiltrados: number
+  totalLeitosFiltrados: number
+  hospitaisComLeitosFiltrados: number
+  leitosSUSFiltrados: number
+}
+
+const DEFAULT_DETAILED_DATA_SUMMARY: DetailedDataSummary = {
   ano: new Date().getFullYear(),
-  total: 0,
-  publicos: 0,
-  privados: 0,
-  totalLeitos: 0,
-  mediaLeitos: 0,
-  hospitaisComLeitos: 0,
-  leitosSUS: 0,
+  uf: "N/A",
+  totalHospitaisFiltrados: 0,
+  totalLeitosFiltrados: 0,
+  hospitaisComLeitosFiltrados: 0,
+  leitosSUSFiltrados: 0,
 }
 
 export default function HospitaisPageClient() {
@@ -90,7 +95,7 @@ export default function HospitaisPageClient() {
   const [filterTipo, setFilterTipo] = useState<string>("all")
   const [filterTipoUnidade, setFilterTipoUnidade] = useState<string>("all")
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined)
-  const [activeTab, setActiveTab] = useState("overview")
+  const [activeTab, setActiveTab] = useState("data")
 
   const loadHospitais = useCallback(async () => {
     setIsLoading(true)
@@ -122,7 +127,6 @@ export default function HospitaisPageClient() {
       })
     } finally {
       setIsLoading(false)
-      // isProcessing será definido como false pelo useMemo após os cálculos iniciais
     }
   }, [])
 
@@ -144,20 +148,22 @@ export default function HospitaisPageClient() {
     return Array.from(allYears).sort((a, b) => b - a)
   }, [])
 
+  const ufsOptions = useMemo(() => {
+    return Array.from(new Set(hospitais.map((h) => h.uf).filter(Boolean))).sort()
+  }, [hospitais])
+
   useEffect(() => {
-    if (!isLoading && hospitais.length > 0 && selectedYear === undefined) {
-      setIsProcessing(true) // Indica que estamos processando para definir o ano
+    if (!isLoading && hospitais.length > 0) {
+      setIsProcessing(true)
       const years = getAllYears(hospitais)
-      if (years.length > 0) {
-        const defaultYear = years.includes(2024) ? "2024" : years[0].toString()
-        setSelectedYear(defaultYear)
-      } else {
-        setSelectedYear("all")
+      if (selectedYear === undefined) {
+        if (years.length > 0) {
+          setSelectedYear(years.includes(2024) ? "2024" : years[0].toString())
+        } else {
+          setSelectedYear("all")
+        }
       }
-      // isProcessing será definido como false pelo useMemo
-    } else if (!isLoading && hospitais.length === 0 && selectedYear === undefined) {
-      setSelectedYear("all")
-      setIsProcessing(false) // Não há o que processar
+      setIsProcessing(false)
     }
   }, [isLoading, hospitais, selectedYear, getAllYears])
 
@@ -197,158 +203,131 @@ export default function HospitaisPageClient() {
     return hospital.historico.some((item) => item.ano === ano && item.leitos?.total !== undefined)
   }, [])
 
-  const { filteredHospitais, yearlyStats, currentYearStats, filterOptions, availableYears, chartData } = useMemo(() => {
-    if (selectedYear === undefined && hospitais.length > 0) {
-      // Se selectedYear ainda não foi definido pelo useEffect, não prossiga com cálculos pesados
-      // Retorne valores padrão para evitar erros e aguarde selectedYear ser definido.
+  const { filteredHospitais, yearlyNationalStats, detailedDataSummary, filterOptions, availableYears, chartData } =
+    useMemo(() => {
+      if (selectedYear === undefined && hospitais.length > 0) {
+        return {
+          filteredHospitais: [],
+          yearlyNationalStats: [],
+          detailedDataSummary: DEFAULT_DETAILED_DATA_SUMMARY,
+          filterOptions: { ufs: ufsOptions, tiposUnidade: [] },
+          availableYears: [],
+          chartData: [],
+        }
+      }
+      setIsProcessing(true)
+      const years = getAllYears(hospitais)
+      const tiposUnidadeOptions = Array.from(new Set(hospitais.map((h) => h.tipo_unidade).filter(Boolean))).sort()
+
+      let yearForFiltering: number
+      if (selectedYear === "all" || selectedYear === undefined) {
+        yearForFiltering = years.length > 0 ? (years.includes(2024) ? 2024 : years[0]) : new Date().getFullYear()
+      } else {
+        yearForFiltering = Number.parseInt(selectedYear, 10)
+      }
+
+      let hospitaisParaFiltrarDetalhado = hospitais
+      if (filterUF !== "all") {
+        hospitaisParaFiltrarDetalhado = hospitaisParaFiltrarDetalhado.filter((h) => h.uf === filterUF)
+      } else {
+        hospitaisParaFiltrarDetalhado = []
+      }
+
+      const hospitaisFiltradosPorUFeAno = hospitaisParaFiltrarDetalhado.filter((h) =>
+        hasDataForYear(h, yearForFiltering),
+      )
+
+      let processedFilteredHospitais = hospitaisFiltradosPorUFeAno
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase()
+        processedFilteredHospitais = processedFilteredHospitais.filter((h) => getNome(h).toLowerCase().includes(search))
+      }
+      if (filterTipo !== "all") {
+        processedFilteredHospitais = processedFilteredHospitais.filter((h) =>
+          filterTipo === "publico" ? h.vinculo_sus === "SUS" : h.vinculo_sus !== "SUS",
+        )
+      }
+      if (filterTipoUnidade !== "all") {
+        processedFilteredHospitais = processedFilteredHospitais.filter((h) => h.tipo_unidade === filterTipoUnidade)
+      }
+
+      let calculatedDetailedDataSummary = DEFAULT_DETAILED_DATA_SUMMARY
+      if (filterUF !== "all") {
+        const totalLeitos = processedFilteredHospitais.reduce((sum, h) => sum + getLeitos(h, yearForFiltering), 0)
+        const leitosSUS = processedFilteredHospitais
+          .filter((h) => h.vinculo_sus === "SUS")
+          .reduce((sum, h) => sum + getLeitos(h, yearForFiltering), 0)
+        const hospitaisComLeitos = processedFilteredHospitais.filter((h) => getLeitos(h, yearForFiltering) > 0).length
+
+        calculatedDetailedDataSummary = {
+          ano: yearForFiltering,
+          uf: filterUF,
+          totalHospitaisFiltrados: processedFilteredHospitais.length,
+          totalLeitosFiltrados: totalLeitos,
+          hospitaisComLeitosFiltrados: hospitaisComLeitos,
+          leitosSUSFiltrados: leitosSUS,
+        }
+      }
+
+      const nationalStats: YearlyNationalStats[] = years.map((ano) => {
+        const yearData = hospitais.filter((h) => hasDataForYear(h, ano))
+        const totalLeitos = yearData.reduce((sum, h) => sum + getLeitos(h, ano), 0)
+        const publicos = yearData.filter((h) => h.vinculo_sus === "SUS").length
+        const leitosSUS = yearData.filter((h) => h.vinculo_sus === "SUS").reduce((sum, h) => sum + getLeitos(h, ano), 0)
+        const hospitaisComLeitos = yearData.filter((h) => getLeitos(h, ano) > 0).length
+        return {
+          ano,
+          total: yearData.length,
+          publicos,
+          privados: yearData.length - publicos,
+          totalLeitos,
+          mediaLeitos: hospitaisComLeitos > 0 ? Math.round(totalLeitos / hospitaisComLeitos) : 0,
+          hospitaisComLeitos,
+          leitosSUS,
+        }
+      })
+
+      const nationalChartData = nationalStats
+        .sort((a, b) => a.ano - b.ano)
+        .map((s) => ({
+          ano: s.ano.toString(),
+          leitos: s.totalLeitos,
+          hospitais: s.total,
+        }))
+
+      setTimeout(() => setIsProcessing(false), 0)
+
       return {
-        filteredHospitais: [],
-        yearlyStats: [],
-        currentYearStats: DEFAULT_CURRENT_YEAR_STATS,
-        filterOptions: { ufs: [], tiposUnidade: [] },
-        availableYears: [],
-        chartData: [],
+        filteredHospitais: processedFilteredHospitais,
+        yearlyNationalStats: nationalStats,
+        detailedDataSummary: calculatedDetailedDataSummary,
+        filterOptions: { ufs: ufsOptions, tiposUnidade: tiposUnidadeOptions },
+        availableYears: years,
+        chartData: nationalChartData,
       }
-    }
-    setIsProcessing(true)
-    const years = getAllYears(hospitais)
-
-    let yearForFilteringTable: number | "all"
-    if (selectedYear === "all" || selectedYear === undefined) {
-      yearForFilteringTable = "all"
-    } else {
-      yearForFilteringTable = Number.parseInt(selectedYear, 10)
-    }
-
-    let baseHospitais = hospitais
-    if (yearForFilteringTable !== "all" && typeof yearForFilteringTable === "number") {
-      baseHospitais = hospitais.filter((h) => hasDataForYear(h, yearForFilteringTable))
-    }
-
-    let processedFilteredHospitais = baseHospitais
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase()
-      processedFilteredHospitais = processedFilteredHospitais.filter(
-        (h) => getNome(h).toLowerCase().includes(search) || h.uf?.toLowerCase().includes(search),
-      )
-    }
-    if (filterUF !== "all") {
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) => h.uf === filterUF)
-    }
-    if (filterTipo !== "all") {
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) =>
-        filterTipo === "publico" ? h.vinculo_sus === "SUS" : h.vinculo_sus !== "SUS",
-      )
-    }
-    if (filterTipoUnidade !== "all") {
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) => h.tipo_unidade === filterTipoUnidade)
-    }
-
-    const statsByYear: YearlyStats[] = years.map((ano) => {
-      const yearData = hospitais.filter((h) => hasDataForYear(h, ano))
-      const totalLeitos = yearData.reduce((sum, h) => sum + getLeitos(h, ano), 0)
-      const publicos = yearData.filter((h) => h.vinculo_sus === "SUS").length
-      const leitosSUS = yearData.filter((h) => h.vinculo_sus === "SUS").reduce((sum, h) => sum + getLeitos(h, ano), 0)
-      const hospitaisComLeitos = yearData.filter((h) => getLeitos(h, ano) > 0).length
-      return {
-        ano,
-        total: yearData.length,
-        publicos,
-        privados: yearData.length - publicos,
-        totalLeitos,
-        mediaLeitos: hospitaisComLeitos > 0 ? Math.round(totalLeitos / hospitaisComLeitos) : 0,
-        hospitaisComLeitos,
-        leitosSUS,
-      }
-    })
-
-    const graphData = statsByYear
-      .sort((a, b) => a.ano - b.ano)
-      .map((s) => ({
-        ano: s.ano.toString(),
-        leitos: s.totalLeitos,
-        hospitais: s.total,
-        sus: s.publicos,
-        privados: s.privados,
-      }))
-
-    let calculatedCurrentYearStats = DEFAULT_CURRENT_YEAR_STATS
-    const targetYearForOverviewStats =
-      selectedYear === "all" || selectedYear === undefined
-        ? years.length > 0
-          ? years.includes(2024)
-            ? 2024
-            : years[0]
-          : new Date().getFullYear()
-        : Number.parseInt(selectedYear, 10)
-
-    // Hospitais para o card de Visão Geral devem respeitar os filtros de texto/UF/tipo
-    // e ser filtrados pelo targetYearForOverviewStats
-    const hospitaisParaOverviewStats = processedFilteredHospitais.filter((h) =>
-      hasDataForYear(h, targetYearForOverviewStats),
-    )
-
-    if (hospitaisParaOverviewStats.length > 0 || years.length > 0) {
-      const cTotalLeitos = hospitaisParaOverviewStats.reduce(
-        (sum, h) => sum + getLeitos(h, targetYearForOverviewStats),
-        0,
-      )
-      const cPublicos = hospitaisParaOverviewStats.filter((h) => h.vinculo_sus === "SUS").length
-      const cLeitosSUS = hospitaisParaOverviewStats
-        .filter((h) => h.vinculo_sus === "SUS")
-        .reduce((sum, h) => sum + getLeitos(h, targetYearForOverviewStats), 0)
-      const cHospitaisComLeitos = hospitaisParaOverviewStats.filter(
-        (h) => getLeitos(h, targetYearForOverviewStats) > 0,
-      ).length
-
-      calculatedCurrentYearStats = {
-        ano: targetYearForOverviewStats,
-        total: hospitaisParaOverviewStats.length,
-        publicos: cPublicos,
-        privados: hospitaisParaOverviewStats.length - cPublicos,
-        totalLeitos: cTotalLeitos,
-        leitosSUS: cLeitosSUS,
-        mediaLeitos: cHospitaisComLeitos > 0 ? Math.round(cTotalLeitos / cHospitaisComLeitos) : 0,
-        hospitaisComLeitos: cHospitaisComLeitos,
-      }
-    }
-
-    const ufs = Array.from(new Set(hospitais.map((h) => h.uf).filter(Boolean))).sort()
-    const tiposUnidade = Array.from(new Set(hospitais.map((h) => h.tipo_unidade).filter(Boolean))).sort()
-
-    setTimeout(() => setIsProcessing(false), 0)
-
-    return {
-      filteredHospitais: processedFilteredHospitais, // Usado na tabela "Dados Detalhados"
-      yearlyStats: statsByYear,
-      currentYearStats: calculatedCurrentYearStats, // Usado no card "Visão Geral"
-      filterOptions: { ufs, tiposUnidade },
-      availableYears: years,
-      chartData: graphData,
-    }
-  }, [
-    hospitais,
-    searchTerm,
-    filterUF,
-    filterTipo,
-    filterTipoUnidade,
-    selectedYear,
-    getAllYears,
-    getLeitos,
-    hasDataForYear,
-  ])
+    }, [
+      hospitais,
+      searchTerm,
+      filterUF,
+      filterTipo,
+      filterTipoUnidade,
+      selectedYear,
+      getAllYears,
+      getLeitos,
+      hasDataForYear,
+      ufsOptions,
+    ])
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-          <p className="text-lg font-medium">Carregando dados dos hospitais...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+        {" "}
+        {/* Ajuste para altura da tela menos header/padding */}
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        <p className="ml-4 text-lg font-medium">Carregando dados...</p>
       </div>
     )
   }
-
   if (error) {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-4">
@@ -367,42 +346,30 @@ export default function HospitaisPageClient() {
       </div>
     )
   }
-
   if (selectedYear === undefined && hospitais.length > 0 && !isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-          <p className="text-lg font-medium">Determinando ano inicial...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+        <p className="ml-4 text-lg font-medium">Determinando ano inicial...</p>
       </div>
     )
   }
 
   const displaySelectedYearLabel =
     selectedYear === "all"
-      ? `Visão Geral (Ano Mais Recente: ${currentYearStats.ano})`
+      ? `(Ano Mais Recente: ${detailedDataSummary.ano})`
       : selectedYear
-        ? `Ano: ${selectedYear}`
-        : "Nenhum ano selecionado"
+        ? `(Ano: ${selectedYear})`
+        : "(Nenhum ano selecionado)"
 
-  // O restante do JSX permanece o mesmo da resposta anterior
-  // ... (copie o JSX de return (...) da resposta anterior aqui)
+  const anoParaTabela =
+    selectedYear === "all" || selectedYear === undefined ? detailedDataSummary.ano : Number.parseInt(selectedYear)
+
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Building2 className="h-8 w-8 text-blue-600" />
-            Hospitais do Brasil
-          </h1>
-          <p className="text-muted-foreground mt-1">Sistema Nacional de Saúde - {displaySelectedYearLabel}</p>
-        </div>
-        <Button onClick={loadHospitais} variant="outline" size="sm" disabled={isLoading || isProcessing}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? "animate-spin" : ""}`} />
-          {isLoading || isProcessing ? "Atualizando..." : "Atualizar Dados"}
-        </Button>
-      </div>
+    // O div principal do HospitaisPageClient não precisa de padding/margem se o <main> do layout já tiver
+    <div className="space-y-6 h-full flex flex-col">
+      {/* O título da página é geralmente tratado pelo componente Layout (header) */}
+      {/* Se precisar de um título específico aqui, pode adicionar, mas o layout já tem um h1 */}
 
       {isProcessing && (
         <div className="flex items-center justify-center py-4 bg-muted/30 rounded-md">
@@ -412,230 +379,59 @@ export default function HospitaisPageClient() {
       )}
 
       {!isLoading && hospitais.length === 0 && !error && (
-        <Alert variant="default">
+        <Alert variant="default" className="mt-4">
+          {" "}
+          {/* Adicionado mt-4 para espaçamento se for o único item */}
           <Info className="h-4 w-4" />
-          <AlertDescription className="ml-2">
-            Nenhum dado de hospital foi encontrado. Verifique a fonte de dados ou tente atualizar.
-          </AlertDescription>
+          <AlertDescription className="ml-2">Nenhum dado de hospital foi encontrado.</AlertDescription>
         </Alert>
       )}
-
       {!isLoading && hospitais.length > 0 && availableYears.length === 0 && (
-        <Alert variant="warning">
+        <Alert variant="warning" className="mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="ml-2">
-            {hospitais.length} hospitais carregados, mas nenhum dado histórico (ano/leitos) foi encontrado neles.
+            {hospitais.length} hospitais carregados, mas nenhum dado histórico (ano/leitos) foi encontrado.
           </AlertDescription>
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" disabled={isProcessing}>
-            Visão Geral
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="data" disabled={isProcessing}>
+            Dados por Estado
           </TabsTrigger>
           <TabsTrigger value="yearly" disabled={isProcessing}>
-            Evolução Anual
-          </TabsTrigger>
-          <TabsTrigger value="data" disabled={isProcessing}>
-            Dados Detalhados
-          </TabsTrigger>
-          <TabsTrigger value="debug" disabled={isProcessing}>
-            <Bug className="h-4 w-4 mr-1" /> Debug
+            Evolução Nacional
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="debug" className="space-y-6">
-          <SimpleDataTest />
-          <DebugLeitos />
-        </TabsContent>
-
-        <TabsContent value="overview" className="space-y-6">
-          <Card className="border-l-4 border-l-orange-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg font-medium">
-                Total de Leitos Hospitalares ({currentYearStats.ano})
+        <TabsContent value="data" className="space-y-6 flex-grow mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Filter className="h-5 w-5" /> Filtros para Lista de Hospitais
               </CardTitle>
-              <Bed className="h-6 w-6 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-orange-600 mb-2">
-                {currentYearStats.totalLeitos.toLocaleString()}
-              </div>
               <p className="text-sm text-muted-foreground">
-                {currentYearStats.hospitaisComLeitos.toLocaleString()} hospitais com dados •{" "}
-                {currentYearStats.leitosSUS.toLocaleString()} leitos SUS •{" "}
-                {(currentYearStats.totalLeitos - currentYearStats.leitosSUS).toLocaleString()} leitos privados
+                {filterUF !== "all" ? `Exibindo dados para ${filterUF} | ` : "Selecione um Estado | "}
+                {displaySelectedYearLabel}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                (Considerando filtros atuais: {currentYearStats.total.toLocaleString()} hospitais)
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="yearly" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" /> Evolução Histórica de Leitos
-              </CardTitle>
             </CardHeader>
             <CardContent>
-              {chartData.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Nenhum dado histórico para o gráfico.</p>
-                  {availableYears.length > 0 && (
-                    <p className="text-xs mt-1">Verifique os filtros ou os dados de origem.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="h-[400px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="ano" />
-                      <YAxis yAxisId="left" orientation="left" stroke="#f97316" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" />
-                      <Tooltip
-                        formatter={(value: number, name: string) => [
-                          value.toLocaleString(),
-                          name === "leitos"
-                            ? "Total Leitos"
-                            : name === "hospitais"
-                              ? "Nº Hospitais"
-                              : name.charAt(0).toUpperCase() + name.slice(1),
-                        ]}
-                        labelFormatter={(label) => `Ano ${label}`}
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="leitos"
-                        name="Total Leitos"
-                        stroke="#f97316"
-                        strokeWidth={3}
-                        dot={{ r: 4 }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="hospitais"
-                        name="Nº Hospitais"
-                        stroke="#3b82f6"
-                        strokeWidth={2}
-                        dot={{ r: 3 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" /> Estatísticas por Ano (Dados Globais)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {yearlyStats.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">Nenhuma estatística anual disponível.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {yearlyStats.map((stats) => (
-                    <Card
-                      key={stats.ano}
-                      className={`border-2 hover:border-blue-400 transition-colors cursor-pointer ${selectedYear === stats.ano.toString() ? "border-blue-500 ring-2 ring-blue-300" : "border-border"}`}
-                      onClick={() => setSelectedYear(stats.ano.toString())}
-                    >
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <Calendar className="h-4 w-4" /> {stats.ano}
-                          {selectedYear === stats.ano.toString() && <Badge className="ml-auto">Selecionado</Badge>}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="font-medium">Leitos:</span>
-                          <span className="font-bold text-orange-600">{stats.totalLeitos.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>Hospitais:</span>
-                          <span>
-                            {stats.total.toLocaleString()} ({stats.hospitaisComLeitos} c/ leitos)
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-muted-foreground">
-                          <span>SUS:</span>
-                          <span className="text-green-600">
-                            {stats.publicos.toLocaleString()} ({stats.leitosSUS.toLocaleString()} leitos)
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="data" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" /> Filtros
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                 <div>
-                  <label className="text-sm font-medium">Ano</label>
+                  <label htmlFor="select-uf-data" className="text-sm font-medium">
+                    Estado (UF)
+                  </label>
                   <Select
-                    value={selectedYear || "all"}
-                    onValueChange={(value) => setSelectedYear(value)}
-                    disabled={isProcessing || availableYears.length === 0}
+                    value={filterUF}
+                    onValueChange={setFilterUF}
+                    disabled={isProcessing || ufsOptions.length === 0}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o ano" />
+                    <SelectTrigger id="select-uf-data">
+                      <SelectValue placeholder="Selecione um Estado" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Visão Geral (Mais Recente)</SelectItem>
-                      {availableYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Buscar</label>
-                  <div className="relative">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Nome, UF..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8"
-                      disabled={isProcessing}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Estado (UF)</label>
-                  <Select value={filterUF} onValueChange={setFilterUF} disabled={isProcessing}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="all">-- Selecione um Estado --</SelectItem>
                       {filterOptions.ufs.map((uf) => (
                         <SelectItem key={uf} value={uf}>
                           {uf}
@@ -645,9 +441,55 @@ export default function HospitaisPageClient() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Vínculo</label>
-                  <Select value={filterTipo} onValueChange={setFilterTipo} disabled={isProcessing}>
-                    <SelectTrigger>
+                  <label htmlFor="select-year-data" className="text-sm font-medium">
+                    Ano
+                  </label>
+                  <Select
+                    value={selectedYear || "all"}
+                    onValueChange={(value) => setSelectedYear(value)}
+                    disabled={isProcessing || availableYears.length === 0}
+                  >
+                    <SelectTrigger id="select-year-data">
+                      <SelectValue placeholder="Selecione o ano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Mais Recente ({detailedDataSummary.ano})</SelectItem>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year.toString()}>
+                          {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label htmlFor="search-data" className="text-sm font-medium">
+                    Buscar por Nome
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="search-data"
+                      placeholder="Nome do hospital..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8"
+                      disabled={isProcessing || filterUF === "all"}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 items-end">
+                <div>
+                  <label htmlFor="select-vinculo-data" className="text-sm font-medium">
+                    Vínculo
+                  </label>
+                  <Select
+                    value={filterTipo}
+                    onValueChange={setFilterTipo}
+                    disabled={isProcessing || filterUF === "all"}
+                  >
+                    <SelectTrigger id="select-vinculo-data">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -658,9 +500,15 @@ export default function HospitaisPageClient() {
                   </Select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Tipo Unidade</label>
-                  <Select value={filterTipoUnidade} onValueChange={setFilterTipoUnidade} disabled={isProcessing}>
-                    <SelectTrigger>
+                  <label htmlFor="select-tipo-unidade-data" className="text-sm font-medium">
+                    Tipo Unidade
+                  </label>
+                  <Select
+                    value={filterTipoUnidade}
+                    onValueChange={setFilterTipoUnidade}
+                    disabled={isProcessing || filterUF === "all"}
+                  >
+                    <SelectTrigger id="select-tipo-unidade-data">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
@@ -676,20 +524,57 @@ export default function HospitaisPageClient() {
               </div>
             </CardContent>
           </Card>
-          <Card>
+
+          {filterUF !== "all" && (
+            <Card className="border-l-4 border-l-blue-500">
+              <CardHeader className="pb-2 pt-4">
+                <CardTitle className="text-md font-medium">
+                  Resumo para {detailedDataSummary.uf} ({detailedDataSummary.ano})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm pb-4">
+                <p>
+                  <span className="font-semibold">{detailedDataSummary.totalLeitosFiltrados.toLocaleString()}</span>{" "}
+                  leitos em{" "}
+                  <span className="font-semibold">
+                    {detailedDataSummary.hospitaisComLeitosFiltrados.toLocaleString()}
+                  </span>{" "}
+                  de{" "}
+                  <span className="font-semibold">{detailedDataSummary.totalHospitaisFiltrados.toLocaleString()}</span>{" "}
+                  hospitais listados.
+                </p>
+                <p>
+                  Leitos SUS:{" "}
+                  <span className="font-semibold">{detailedDataSummary.leitosSUSFiltrados.toLocaleString()}</span>
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="flex-grow flex flex-col">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Resultados ({filteredHospitais.length.toLocaleString()})</span>
+              <CardTitle className="flex items-center justify-between text-xl">
+                <div className="flex items-center gap-2">
+                  <ListChecks />
+                  <span>
+                    Hospitais em {filterUF !== "all" ? filterUF : "..."} ({filteredHospitais.length.toLocaleString()})
+                  </span>
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {filteredHospitais.length === 0 && !isProcessing ? (
-                <div className="text-center py-12">
-                  <Building2 className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Nenhum hospital encontrado</h3>
-                  <p className="text-muted-foreground">
-                    Tente ajustar os filtros ou verifique se há dados para o ano selecionado.
+            <CardContent className="flex-grow overflow-y-auto">
+              {filterUF === "all" ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <MapPin className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-lg font-medium">Por favor, selecione um Estado (UF) para listar os hospitais.</p>
+                </div>
+              ) : filteredHospitais.length === 0 && !isProcessing ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Building2 className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-lg font-medium">
+                    Nenhum hospital encontrado para os filtros selecionados em {filterUF}.
                   </p>
+                  <p className="text-sm">Tente ajustar os filtros ou o ano.</p>
                 </div>
               ) : (
                 <div className="rounded-md border overflow-hidden">
@@ -697,36 +582,22 @@ export default function HospitaisPageClient() {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Hospital</TableHead>
-                        <TableHead>Local (UF)</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead className="text-right">Leitos ({currentYearStats.ano})</TableHead>
+                        <TableHead>Tipo Unidade</TableHead>
+                        <TableHead className="text-right">Leitos ({anoParaTabela})</TableHead>
                         <TableHead>Vínculo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredHospitais.slice(0, 100).map((hospital) => {
-                        const anoParaLeitos =
-                          selectedYear === "all" || selectedYear === undefined
-                            ? currentYearStats.ano
-                            : Number.parseInt(selectedYear)
-                        const leitos = getLeitos(hospital, anoParaLeitos)
+                        const leitos = getLeitos(hospital, anoParaTabela)
                         const nome = getNome(hospital)
-                        const detalhesLeitos = getLeitosDetalhes(hospital, anoParaLeitos)
+                        const detalhesLeitos = getLeitosDetalhes(hospital, anoParaTabela)
                         return (
                           <TableRow key={hospital._id} className="hover:bg-muted/30">
                             <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span className="truncate max-w-xs" title={nome}>
-                                  {nome}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                                <span className="text-sm">{hospital.uf || "N/A"}</span>
-                              </div>
+                              <span className="truncate max-w-xs block" title={nome}>
+                                {nome}
+                              </span>
                             </TableCell>
                             <TableCell>
                               {hospital.tipo_unidade && (
@@ -767,6 +638,113 @@ export default function HospitaisPageClient() {
                       Mostrando 100 de {filteredHospitais.length.toLocaleString()} resultados.
                     </div>
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="yearly" className="space-y-6 flex-grow mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <TrendingUp className="h-5 w-5" /> Evolução Nacional de Leitos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {chartData.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhum dado histórico para o gráfico.</p>
+                </div>
+              ) : (
+                <div className="h-[400px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="ano" />
+                      <YAxis yAxisId="left" orientation="left" stroke="#f97316" />
+                      <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" />
+                      <Tooltip
+                        formatter={(value: number, name: string) => [
+                          value.toLocaleString(),
+                          name === "leitos" ? "Total Leitos" : name === "hospitais" ? "Nº Hospitais" : name,
+                        ]}
+                        labelFormatter={(label) => `Ano ${label}`}
+                      />
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="leitos"
+                        name="Total Leitos"
+                        stroke="#f97316"
+                        strokeWidth={3}
+                        dot={{ r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="hospitais"
+                        name="Nº Hospitais"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <BarChart3 className="h-5 w-5" /> Estatísticas Nacionais por Ano
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {yearlyNationalStats.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhuma estatística anual disponível.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {yearlyNationalStats.map((stats) => (
+                    <Card
+                      key={stats.ano}
+                      className={`border-2 hover:border-blue-400 transition-colors cursor-pointer ${selectedYear === stats.ano.toString() ? "border-blue-500 ring-2 ring-blue-300" : "border-border"}`}
+                      onClick={() => {
+                        setSelectedYear(stats.ano.toString())
+                      }}
+                    >
+                      <CardHeader className="pb-2 pt-4">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Calendar className="h-4 w-4" /> {stats.ano}{" "}
+                          {selectedYear === stats.ano.toString() && <Badge className="ml-auto">Ano Selecionado</Badge>}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-1 text-sm pb-4">
+                        <div className="flex justify-between">
+                          <span className="font-medium">Leitos:</span>
+                          <span className="font-bold text-orange-600">{stats.totalLeitos.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Hospitais:</span>
+                          <span>
+                            {stats.total.toLocaleString()} ({stats.hospitaisComLeitos} c/ leitos)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>SUS:</span>
+                          <span className="text-green-600">
+                            {stats.publicos.toLocaleString()} ({stats.leitosSUS.toLocaleString()} leitos)
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </CardContent>

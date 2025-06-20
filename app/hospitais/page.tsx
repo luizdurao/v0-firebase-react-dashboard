@@ -46,6 +46,9 @@ function ErrorFallback() {
 }
 
 export default function HospitaisPage() {
+  // Este Server Component simplesmente renderiza o Client Component.
+  // O layout com o menu lateral é aplicado pelo app/layout.tsx,
+  // que deve estar usando o components/layout.tsx para envolver as páginas.
   return (
     <Suspense fallback={<LoadingFallback />}>
       <HospitaisPageClient />

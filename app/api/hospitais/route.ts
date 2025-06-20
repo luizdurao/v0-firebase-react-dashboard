@@ -20,8 +20,6 @@ try {
   }
 } catch (e) {
   console.error("Firebase initialization error:", e)
-  // Se a inicialização falhar, não podemos prosseguir.
-  // Retornar um erro aqui pode ser uma opção, mas GET não será chamado.
 }
 
 const db = app ? getFirestore(app) : null
@@ -33,34 +31,26 @@ export async function GET() {
   }
 
   try {
-    console.log("API /hospitais: Iniciando busca de dados...")
     const q = query(collection(db, "hospitais"))
     const snap = await getDocs(q)
-    console.log(`API /hospitais: ${snap.docs.length} documentos encontrados.`)
 
     const hospitais = snap.docs.map((doc) => {
       const data = doc.data()
-      // Garante que 'historico' seja sempre um array.
       const historico = Array.isArray(data.historico)
-        ? data.historico.filter((h) => h && typeof h.ano === "number" && h.leitos && typeof h.leitos.total === "number") // Filtra itens inválidos no histórico
+        ? data.historico.filter((h) => h && typeof h.ano === "number" && h.leitos && typeof h.leitos.total === "number")
         : []
 
       return {
         id: doc.id,
-        _id: data._id, // Assumindo que _id existe e é o ID numérico original
+        _id: data._id,
         nome: data.nome || "Nome Indisponível",
         uf: data.uf || "N/A",
         tipo_unidade: data.tipo_unidade || "N/A",
         vinculo_sus: data.vinculo_sus || "N/A",
-        ...data, // Inclui outros campos como cnpj, municipio, dependencia
-        historico, // Usa o histórico limpo e garantido como array
+        ...data,
+        historico,
       }
     })
-
-    if (hospitais.length > 0) {
-      console.log("API /hospitais: Exemplo de hospital processado:", hospitais[0])
-    }
-
     return NextResponse.json(hospitais)
   } catch (err) {
     console.error("API /hospitais error:", err)
