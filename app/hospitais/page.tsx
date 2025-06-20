@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import Layout from "@/components/layout" // Re-adicionando a importação do Layout
 import HospitaisPageClient from "./HospitaisPageClient"
 import { RefreshCw } from "lucide-react"
 
@@ -16,8 +17,12 @@ function LoadingFallback() {
 
 export default function HospitaisPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <HospitaisPageClient />
-    </Suspense>
+    <Layout>
+      {" "}
+      {/* Envolvendo o conteúdo da página com o Layout */}
+      <Suspense fallback={<LoadingFallback />}>
+        <HospitaisPageClient />
+      </Suspense>
+    </Layout>
   )
 }
