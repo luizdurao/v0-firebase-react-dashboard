@@ -1,5 +1,0 @@
-# Execute este comando para instalar o Leaflet:
-npm install leaflet @types/leaflet
-
-# Execute este comando para instalar o react-simple-maps e react-tooltip:
-npm install react-simple-maps react-tooltip
