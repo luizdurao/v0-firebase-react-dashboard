@@ -1,5 +1,10 @@
-import HospitalDashboard from "../hospital-dashboard"
+import Layout from "@/components/layout"
+import Dashboard from "@/components/dashboard"
 
-export default function Page() {
-  return <HospitalDashboard />
+export default function HomePage() {
+  return (
+    <Layout>
+      <Dashboard />
+    </Layout>
+  )
 }
