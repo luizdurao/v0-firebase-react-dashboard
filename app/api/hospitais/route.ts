@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { initializeApp, getApps, getApp } from "firebase/app"
-import { getFirestore, collection, getDocs, query } from "firebase/firestore"
+import { initializeApp, getApps, getApp } from "firebase/app" // getApp para evitar reinicialização
+import { getFirestore, collection, getDocs, query, orderBy } from "firebase/firestore"
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,31 +11,24 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
+// Garante que o Firebase seja inicializado apenas uma vez
 let app
-try {
-  if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig)
-  } else {
-    app = getApp()
-  }
-} catch (e) {
-  console.error("Firebase initialization error:", e)
+if (getApps().length === 0) {
+  app = initializeApp(firebaseConfig)
+} else {
+  app = getApp()
 }
 
-const db = app ? getFirestore(app) : null
+const db = getFirestore(app)
 
 export async function GET() {
-  if (!db) {
-    console.error("Firestore DB is not initialized.")
-    return NextResponse.json({ error: "Erro interno do servidor: DB não inicializado" }, { status: 500 })
-  }
-
   try {
-    const q = query(collection(db, "hospitais"))
+    const q = query(collection(db, "hospitais"), orderBy("nome", "asc"))
     const snap = await getDocs(q)
 
     const hospitais = snap.docs.map((doc) => {
       const data = doc.data()
+      // Validação básica do histórico
       const historico = Array.isArray(data.historico)
         ? data.historico.filter((h) => h && typeof h.ano === "number" && h.leitos && typeof h.leitos.total === "number")
         : []
@@ -45,12 +38,14 @@ export async function GET() {
         _id: data._id,
         nome: data.nome || "Nome Indisponível",
         uf: data.uf || "N/A",
+        municipio: data.municipio || "N/A", // Ainda pode ser retornado pela API
         tipo_unidade: data.tipo_unidade || "N/A",
         vinculo_sus: data.vinculo_sus || "N/A",
         ...data,
         historico,
       }
     })
+
     return NextResponse.json(hospitais)
   } catch (err) {
     console.error("API /hospitais error:", err)

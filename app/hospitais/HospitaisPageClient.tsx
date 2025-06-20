@@ -1,7 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
-import { useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -47,7 +46,7 @@ interface Hospital {
   _id: number
   nome: string
   cnpj?: string
-  municipio?: string
+  municipio?: string // Mantido na interface, mas não usado ativamente na UI para filtros/exibição principal
   uf: string
   dependencia?: string
   tipo_unidade: string
@@ -57,33 +56,20 @@ interface Hospital {
 }
 
 interface YearlyStatSummary {
-  // Renomeado de YearlyNationalStats para ser mais genérico
   ano: number
-  total: number // total hospitais no conjunto (nacional ou estadual)
-  publicos: number
-  privados: number
+  totalHospitais: number
   totalLeitos: number
-  mediaLeitos: number
   hospitaisComLeitos: number
   leitosSUS: number
+  hospitaisSUS: number
 }
 
-interface DetailedDataSummary {
-  ano: number
-  uf: string
-  totalHospitaisFiltrados: number
-  totalLeitosFiltrados: number
-  hospitaisComLeitosFiltrados: number
-  leitosSUSFiltrados: number
-}
-
-const DEFAULT_DETAILED_DATA_SUMMARY: DetailedDataSummary = {
-  ano: new Date().getFullYear(),
-  uf: "N/A",
-  totalHospitaisFiltrados: 0,
-  totalLeitosFiltrados: 0,
-  hospitaisComLeitosFiltrados: 0,
-  leitosSUSFiltrados: 0,
+interface UFYearSummary {
+  totalHospitais: number
+  totalLeitos: number
+  hospitaisComLeitos: number
+  leitosSUS: number
+  hospitaisSUS: number
 }
 
 export default function HospitaisPageClient() {
@@ -91,11 +77,14 @@ export default function HospitaisPageClient() {
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterUF, setFilterUF] = useState<string>("all") // Este filtro agora é global para a página
-  const [filterTipo, setFilterTipo] = useState<string>("all")
-  const [filterTipoUnidade, setFilterTipoUnidade] = useState<string>("all")
+
+  const [filterUF, setFilterUF] = useState<string>("all")
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined)
+
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterVinculoSUS, setFilterVinculoSUS] = useState<string>("all")
+  const [filterTipoUnidade, setFilterTipoUnidade] = useState<string>("all")
+
   const [activeTab, setActiveTab] = useState("data")
 
   const loadHospitais = useCallback(async () => {
@@ -108,7 +97,7 @@ export default function HospitaisPageClient() {
         const errorData = await response.json().catch(() => ({ error: "Falha ao decodificar erro da API" }))
         throw new Error(`API Erro ${response.status}: ${errorData.error || response.statusText}`)
       }
-      const data = await response.json()
+      const data: Hospital[] = await response.json()
       if (!Array.isArray(data)) {
         throw new Error("Formato de dados inválido recebido da API.")
       }
@@ -135,7 +124,7 @@ export default function HospitaisPageClient() {
     loadHospitais()
   }, [loadHospitais])
 
-  const getAllYears = useCallback((data: Hospital[]): number[] => {
+  const getAllAvailableYears = useCallback((data: Hospital[]): number[] => {
     const allYears = new Set<number>()
     data.forEach((hospital) => {
       if (hospital.historico && Array.isArray(hospital.historico)) {
@@ -149,201 +138,170 @@ export default function HospitaisPageClient() {
     return Array.from(allYears).sort((a, b) => b - a)
   }, [])
 
-  const ufsOptions = useMemo(() => {
+  const ufsList = useMemo(() => {
     return Array.from(new Set(hospitais.map((h) => h.uf).filter(Boolean))).sort()
   }, [hospitais])
 
+  const tiposUnidadeList = useMemo(() => {
+    return Array.from(new Set(hospitais.map((h) => h.tipo_unidade).filter(Boolean))).sort()
+  }, [hospitais])
+
+  const availableYears = useMemo(() => getAllAvailableYears(hospitais), [hospitais, getAllAvailableYears])
+
   useEffect(() => {
-    if (!isLoading && hospitais.length > 0) {
-      setIsProcessing(true)
-      const years = getAllYears(hospitais)
-      if (selectedYear === undefined) {
-        if (years.length > 0) {
-          setSelectedYear(years.includes(2024) ? "2024" : years[0].toString())
-        } else {
-          setSelectedYear("all")
-        }
+    if (!isLoading && hospitais.length > 0 && selectedYear === undefined) {
+      if (availableYears.length > 0) {
+        setSelectedYear(availableYears.includes(2024) ? "2024" : availableYears[0].toString())
+      } else {
+        setSelectedYear("all")
       }
-      setIsProcessing(false)
     }
-  }, [isLoading, hospitais, selectedYear, getAllYears])
+  }, [isLoading, hospitais, selectedYear, availableYears])
 
-  const getLeitos = useCallback(
-    (hospital: Hospital, ano?: number): number => {
-      if (!hospital.historico || hospital.historico.length === 0) return 0
-      const availableYearsInHospital = getAllYears([hospital])
-      const targetAno = ano || (availableYearsInHospital.length > 0 ? availableYearsInHospital[0] : undefined)
-      if (!targetAno) return 0
-      const dadosAno = hospital.historico.find((h) => h.ano === targetAno)
-      return dadosAno?.leitos?.total || 0
-    },
-    [getAllYears],
-  )
-
-  const getLeitosDetalhes = useCallback(
-    (hospital: Hospital, ano?: number): Record<string, number> => {
-      if (!hospital.historico || hospital.historico.length === 0) return {}
-      const availableYearsInHospital = getAllYears([hospital])
-      const targetAno = ano || (availableYearsInHospital.length > 0 ? availableYearsInHospital[0] : undefined)
-      if (!targetAno) return {}
-      const dadosAno = hospital.historico.find((h) => h.ano === targetAno)
-      if (!dadosAno?.leitos) return {}
-      const detalhes: Record<string, number> = {}
-      Object.entries(dadosAno.leitos).forEach(([key, value]) => {
-        if (typeof value === "number") detalhes[key] = value
-      })
-      return detalhes
-    },
-    [getAllYears],
-  )
-
-  const getNome = (hospital: Hospital): string => hospital.nome || `Hospital ${hospital._id || hospital.id}`
-
-  const hasDataForYear = useCallback((hospital: Hospital, ano: number): boolean => {
-    if (!hospital.historico) return false
-    return hospital.historico.some((item) => item.ano === ano && item.leitos?.total !== undefined)
+  const getLeitosNoAno = useCallback((hospital: Hospital, ano: number): number | null => {
+    if (!hospital.historico) return null
+    const dataAno = hospital.historico.find((h) => h.ano === ano)
+    return dataAno?.leitos?.total ?? null
   }, [])
 
-  const {
-    filteredHospitais, // Para a tabela em "Dados por Estado"
-    evolutionTabYearlyStats, // Para os cards na aba "Evolução Anual"
-    detailedDataSummary, // Para o resumo em "Dados por Estado"
-    filterOptions,
-    availableYears,
-    evolutionTabChartData, // Para o gráfico na aba "Evolução Anual"
-  } = useMemo(() => {
-    if (selectedYear === undefined && hospitais.length > 0) {
-      // Aguardando selectedYear ser definido
-      return {
-        filteredHospitais: [],
-        evolutionTabYearlyStats: [],
-        detailedDataSummary: DEFAULT_DETAILED_DATA_SUMMARY,
-        filterOptions: { ufs: ufsOptions, tiposUnidade: [] },
-        availableYears: [],
-        evolutionTabChartData: [],
-      }
-    }
+  const getLeitosDetalhesNoAno = useCallback((hospital: Hospital, ano: number): HistoricoItem["leitos"] | null => {
+    if (!hospital.historico) return null
+    const dataAno = hospital.historico.find((h) => h.ano === ano)
+    return dataAno?.leitos ?? null
+  }, [])
+
+  const { hospitaisParaTabela, resumoUFSelecionado, statsEvolucaoAnual, chartDataEvolucao } = useMemo(() => {
     setIsProcessing(true)
-
-    const years = getAllYears(hospitais)
-    const tiposUnidadeOptions = Array.from(new Set(hospitais.map((h) => h.tipo_unidade).filter(Boolean))).sort()
-
-    // --- Cálculos para a aba "Dados por Estado" ---
-    let yearForDetailedFiltering: number
-    if (selectedYear === "all" || selectedYear === undefined) {
-      yearForDetailedFiltering = years.length > 0 ? (years.includes(2024) ? 2024 : years[0]) : new Date().getFullYear()
-    } else {
-      yearForDetailedFiltering = Number.parseInt(selectedYear, 10)
+    let anoReferencia: number | null = null
+    if (selectedYear && selectedYear !== "all") {
+      anoReferencia = Number.parseInt(selectedYear, 10)
+    } else if (availableYears.length > 0) {
+      anoReferencia = availableYears.includes(2024) ? 2024 : availableYears[0]
     }
 
-    let hospitaisForDetailedView = hospitais
+    let baseHospitaisUF = hospitais
     if (filterUF !== "all") {
-      hospitaisForDetailedView = hospitaisForDetailedView.filter((h) => h.uf === filterUF)
-    } else {
-      hospitaisForDetailedView = [] // Não mostrar nada na tabela se nenhum UF específico for selecionado
+      baseHospitaisUF = hospitais.filter((h) => h.uf === filterUF)
     }
 
-    const hospitaisFiltradosPorUFeAno = hospitaisForDetailedView.filter((h) =>
-      hasDataForYear(h, yearForDetailedFiltering),
-    )
+    let hospitaisFiltradosParaTabela = baseHospitaisUF
+    if (anoReferencia !== null) {
+      hospitaisFiltradosParaTabela = hospitaisFiltradosParaTabela.filter(
+        (h) => getLeitosNoAno(h, anoReferencia as number) !== null,
+      )
+    }
 
-    let processedFilteredHospitais = hospitaisFiltradosPorUFeAno
     if (searchTerm) {
       const search = searchTerm.toLowerCase()
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) => getNome(h).toLowerCase().includes(search))
+      // Removida a busca por município aqui
+      hospitaisFiltradosParaTabela = hospitaisFiltradosParaTabela.filter((h) => h.nome.toLowerCase().includes(search))
     }
-    if (filterTipo !== "all") {
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) =>
-        filterTipo === "publico" ? h.vinculo_sus === "SUS" : h.vinculo_sus !== "SUS",
+    if (filterVinculoSUS !== "all") {
+      hospitaisFiltradosParaTabela = hospitaisFiltradosParaTabela.filter((h) =>
+        filterVinculoSUS === "SUS" ? h.vinculo_sus === "SUS" : h.vinculo_sus !== "SUS",
       )
     }
     if (filterTipoUnidade !== "all") {
-      processedFilteredHospitais = processedFilteredHospitais.filter((h) => h.tipo_unidade === filterTipoUnidade)
+      hospitaisFiltradosParaTabela = hospitaisFiltradosParaTabela.filter((h) => h.tipo_unidade === filterTipoUnidade)
     }
 
-    let calculatedDetailedDataSummary = DEFAULT_DETAILED_DATA_SUMMARY
-    if (filterUF !== "all") {
-      const totalLeitos = processedFilteredHospitais.reduce((sum, h) => sum + getLeitos(h, yearForDetailedFiltering), 0)
-      const leitosSUS = processedFilteredHospitais
-        .filter((h) => h.vinculo_sus === "SUS")
-        .reduce((sum, h) => sum + getLeitos(h, yearForDetailedFiltering), 0)
-      const hospitaisComLeitos = processedFilteredHospitais.filter(
-        (h) => getLeitos(h, yearForDetailedFiltering) > 0,
-      ).length
+    const currentUFYearSummary: UFYearSummary = {
+      totalHospitais: 0,
+      totalLeitos: 0,
+      hospitaisComLeitos: 0,
+      leitosSUS: 0,
+      hospitaisSUS: 0,
+    }
+    if (filterUF !== "all" && anoReferencia !== null) {
+      const hospitaisParaResumo = hospitaisFiltradosParaTabela
 
-      calculatedDetailedDataSummary = {
-        ano: yearForDetailedFiltering,
-        uf: filterUF,
-        totalHospitaisFiltrados: processedFilteredHospitais.length,
-        totalLeitosFiltrados: totalLeitos,
-        hospitaisComLeitosFiltrados: hospitaisComLeitos,
-        leitosSUSFiltrados: leitosSUS,
-      }
+      currentUFYearSummary.totalHospitais = hospitaisParaResumo.length
+      hospitaisParaResumo.forEach((h) => {
+        const leitos = getLeitosNoAno(h, anoReferencia as number)
+        if (leitos !== null) {
+          currentUFYearSummary.totalLeitos += leitos
+          currentUFYearSummary.hospitaisComLeitos += 1
+          if (h.vinculo_sus === "SUS") {
+            currentUFYearSummary.leitosSUS += leitos
+          }
+        }
+        if (h.vinculo_sus === "SUS") {
+          currentUFYearSummary.hospitaisSUS += 1
+        }
+      })
     }
 
-    // --- Cálculos para a aba "Evolução Anual" (Nacional ou Estadual) ---
-    const hospitalsForEvolutionSource = filterUF === "all" ? hospitais : hospitais.filter((h) => h.uf === filterUF)
+    const calculatedStatsEvolucao: YearlyStatSummary[] = availableYears.map((ano) => {
+      let totalLeitosAno = 0
+      let hospitaisComLeitosAno = 0
+      let leitosSUSAno = 0
+      let hospitaisSUSAno = 0
+      const hospitaisNoAno = baseHospitaisUF.filter((h) => getLeitosNoAno(h, ano) !== null)
 
-    const calculatedEvolutionTabYearlyStats: YearlyStatSummary[] = years.map((ano) => {
-      const yearData = hospitalsForEvolutionSource.filter((h) => hasDataForYear(h, ano))
-      const totalLeitos = yearData.reduce((sum, h) => sum + getLeitos(h, ano), 0)
-      const publicos = yearData.filter((h) => h.vinculo_sus === "SUS").length
-      const leitosSUS = yearData.filter((h) => h.vinculo_sus === "SUS").reduce((sum, h) => sum + getLeitos(h, ano), 0)
-      const hospitaisComLeitos = yearData.filter((h) => getLeitos(h, ano) > 0).length
+      hospitaisNoAno.forEach((h) => {
+        const leitos = getLeitosNoAno(h, ano) as number
+        totalLeitosAno += leitos
+        hospitaisComLeitosAno += 1
+        if (h.vinculo_sus === "SUS") {
+          leitosSUSAno += leitos
+          hospitaisSUSAno += 1
+        }
+      })
       return {
         ano,
-        total: yearData.length,
-        publicos,
-        privados: yearData.length - publicos,
-        totalLeitos,
-        mediaLeitos: hospitaisComLeitos > 0 ? Math.round(totalLeitos / hospitaisComLeitos) : 0,
-        hospitaisComLeitos,
-        leitosSUS,
+        totalHospitais: hospitaisNoAno.length,
+        totalLeitos: totalLeitosAno,
+        hospitaisComLeitos: hospitaisComLeitosAno,
+        leitosSUS: leitosSUSAno,
+        hospitaisSUS: hospitaisSUSAno,
       }
     })
 
-    const calculatedEvolutionTabChartData = calculatedEvolutionTabYearlyStats
+    const calculatedChartDataEvolucao = calculatedStatsEvolucao
       .sort((a, b) => a.ano - b.ano)
       .map((s) => ({
         ano: s.ano.toString(),
         leitos: s.totalLeitos,
-        hospitais: s.total,
+        hospitais: s.totalHospitais,
       }))
 
-    setTimeout(() => setIsProcessing(false), 0)
+    setTimeout(() => setIsProcessing(false), 300)
 
     return {
-      filteredHospitais: processedFilteredHospitais,
-      evolutionTabYearlyStats: calculatedEvolutionTabYearlyStats,
-      detailedDataSummary: calculatedDetailedDataSummary,
-      filterOptions: { ufs: ufsOptions, tiposUnidade: tiposUnidadeOptions },
-      availableYears: years,
-      evolutionTabChartData: calculatedEvolutionTabChartData,
+      hospitaisParaTabela: hospitaisFiltradosParaTabela,
+      resumoUFSelecionado: currentUFYearSummary,
+      statsEvolucaoAnual: calculatedStatsEvolucao,
+      chartDataEvolucao: calculatedChartDataEvolucao,
     }
   }, [
     hospitais,
-    searchTerm,
     filterUF,
-    filterTipo,
-    filterTipoUnidade,
     selectedYear,
-    getAllYears,
-    getLeitos,
-    hasDataForYear,
-    ufsOptions,
+    searchTerm,
+    filterVinculoSUS,
+    filterTipoUnidade,
+    availableYears,
+    getLeitosNoAno,
   ])
+
+  const anoAtualParaExibicao = useMemo(() => {
+    if (selectedYear && selectedYear !== "all") return Number.parseInt(selectedYear, 10)
+    if (availableYears.length > 0) return availableYears.includes(2024) ? 2024 : availableYears[0]
+    return new Date().getFullYear()
+  }, [selectedYear, availableYears])
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-160px)] p-6">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
         <p className="ml-4 text-lg font-medium">Carregando dados...</p>
       </div>
     )
   }
+
   if (error) {
     return (
-      <div className="p-6 max-w-7xl mx-auto space-y-4">
+      <div className="p-6 max-w-4xl mx-auto space-y-4">
         <Alert variant="destructive" className="flex items-start">
           <AlertCircle className="h-5 w-5 mt-0.5" />
           <div className="ml-3 flex-1">
@@ -359,49 +317,56 @@ export default function HospitaisPageClient() {
       </div>
     )
   }
+
   if (selectedYear === undefined && hospitais.length > 0 && !isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-120px)]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-160px)] p-6">
         <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-        <p className="ml-4 text-lg font-medium">Determinando ano inicial...</p>
+        <p className="ml-4 text-lg font-medium">Determinando ano de referência...</p>
       </div>
     )
   }
 
-  const displaySelectedYearLabel =
-    selectedYear === "all"
-      ? `(Ano Mais Recente: ${detailedDataSummary.ano})`
-      : selectedYear
-        ? `(Ano: ${selectedYear})`
-        : "(Nenhum ano selecionado)"
-
-  const anoParaTabela =
-    selectedYear === "all" || selectedYear === undefined ? detailedDataSummary.ano : Number.parseInt(selectedYear)
-
-  const evolutionTitle = filterUF === "all" ? "Evolução Nacional de Leitos" : `Evolução de Leitos em ${filterUF}`
-  const evolutionStatsTitle =
-    filterUF === "all" ? "Estatísticas Nacionais por Ano" : `Estatísticas por Ano em ${filterUF}`
-
   return (
-    <div className="space-y-6 h-full flex flex-col">
+    <div className="p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Building2 className="h-8 w-8 text-blue-600" />
+            Painel de Hospitais
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Análise de leitos por Estado e Ano ({filterUF === "all" ? "Brasil" : filterUF}
+            {selectedYear && selectedYear !== "all" ? `, ${selectedYear}` : ", Ano Mais Recente"})
+          </p>
+        </div>
+        <Button onClick={loadHospitais} variant="outline" disabled={isLoading || isProcessing}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || isProcessing ? "animate-spin" : ""}`} />
+          Atualizar Dados
+        </Button>
+      </div>
+
       {isProcessing && (
-        <div className="flex items-center justify-center py-4 bg-muted/30 rounded-md">
+        <div className="flex items-center justify-center py-3 bg-muted/50 rounded-md border border-dashed">
           <Loader2 className="h-5 w-5 animate-spin text-blue-500 mr-2" />
-          <p className="text-sm text-muted-foreground">Aplicando filtros e atualizando visualização...</p>
+          <p className="text-sm text-muted-foreground">Processando filtros e atualizando visualizações...</p>
         </div>
       )}
 
       {!isLoading && hospitais.length === 0 && !error && (
         <Alert variant="default" className="mt-4">
           <Info className="h-4 w-4" />
-          <AlertDescription className="ml-2">Nenhum dado de hospital foi encontrado.</AlertDescription>
+          <AlertDescription className="ml-2">
+            Nenhum dado de hospital foi encontrado na base. Verifique a fonte de dados.
+          </AlertDescription>
         </Alert>
       )}
       {!isLoading && hospitais.length > 0 && availableYears.length === 0 && (
         <Alert variant="warning" className="mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="ml-2">
-            {hospitais.length} hospitais carregados, mas nenhum dado histórico (ano/leitos) foi encontrado.
+            {hospitais.length} hospitais carregados, mas nenhum dado histórico (ano/leitos) foi encontrado para popular
+            os filtros de ano.
           </AlertDescription>
         </Alert>
       )}
@@ -409,154 +374,157 @@ export default function HospitaisPageClient() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-grow flex flex-col">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="data" disabled={isProcessing}>
-            Dados por Estado
+            Dados Detalhados por Estado
           </TabsTrigger>
           <TabsTrigger value="yearly" disabled={isProcessing}>
             Evolução Anual {filterUF !== "all" ? `(${filterUF})` : "(Nacional)"}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="data" className="space-y-6 flex-grow mt-6">
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <Filter className="h-5 w-5" /> Filtros Principais
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">Selecione o Estado (UF) e o Ano de referência.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <div>
+                <label htmlFor="select-uf-main" className="text-sm font-medium">
+                  Estado (UF)
+                </label>
+                <Select value={filterUF} onValueChange={setFilterUF} disabled={isProcessing || ufsList.length === 0}>
+                  <SelectTrigger id="select-uf-main">
+                    <SelectValue placeholder="Brasil (Todos os Estados)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Brasil (Todos os Estados)</SelectItem>
+                    {ufsList.map((uf) => (
+                      <SelectItem key={uf} value={uf}>
+                        {uf}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label htmlFor="select-year-main" className="text-sm font-medium">
+                  Ano de Referência
+                </label>
+                <Select
+                  value={selectedYear || "all"}
+                  onValueChange={(value) => setSelectedYear(value)}
+                  disabled={isProcessing || availableYears.length === 0}
+                >
+                  <SelectTrigger id="select-year-main">
+                    <SelectValue placeholder="Selecione o ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      Mais Recente (
+                      {availableYears.length > 0 ? (availableYears.includes(2024) ? 2024 : availableYears[0]) : "N/A"})
+                    </SelectItem>
+                    {availableYears.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <TabsContent value="data" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Filter className="h-5 w-5" /> Filtros Globais
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Search className="h-5 w-5" /> Filtros Adicionais para Tabela
               </CardTitle>
-              <p className="text-sm text-muted-foreground">Estes filtros afetam ambas as abas.</p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                 <div>
-                  <label htmlFor="select-uf-global" className="text-sm font-medium">
-                    Estado (UF)
+                  <label htmlFor="search-table" className="text-sm font-medium">
+                    Buscar por Nome
+                  </label>
+                  <Input
+                    id="search-table"
+                    placeholder="Digite o nome do hospital..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    disabled={isProcessing || filterUF === "all"}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="select-vinculo-table" className="text-sm font-medium">
+                    Vínculo SUS
                   </label>
                   <Select
-                    value={filterUF}
-                    onValueChange={setFilterUF}
-                    disabled={isProcessing || ufsOptions.length === 0}
+                    value={filterVinculoSUS}
+                    onValueChange={setFilterVinculoSUS}
+                    disabled={isProcessing || filterUF === "all"}
                   >
-                    <SelectTrigger id="select-uf-global">
-                      <SelectValue placeholder="Nacional / Selecione UF" />
+                    <SelectTrigger id="select-vinculo-table">
+                      <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Brasil (Nacional)</SelectItem>
-                      {filterOptions.ufs.map((uf) => (
-                        <SelectItem key={uf} value={uf}>
-                          {uf}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="SUS">SUS</SelectItem>
+                      <SelectItem value="NaoSUS">Não SUS</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <label htmlFor="select-year-global" className="text-sm font-medium">
-                    Ano de Referência (para Dados Detalhados e Destaque)
+                  <label htmlFor="select-tipo-unidade-table" className="text-sm font-medium">
+                    Tipo de Unidade
                   </label>
                   <Select
-                    value={selectedYear || "all"}
-                    onValueChange={(value) => setSelectedYear(value)}
-                    disabled={isProcessing || availableYears.length === 0}
+                    value={filterTipoUnidade}
+                    onValueChange={setFilterTipoUnidade}
+                    disabled={isProcessing || filterUF === "all" || tiposUnidadeList.length === 0}
                   >
-                    <SelectTrigger id="select-year-global">
-                      <SelectValue placeholder="Selecione o ano" />
+                    <SelectTrigger id="select-tipo-unidade-table">
+                      <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Mais Recente ({detailedDataSummary.ano})</SelectItem>
-                      {availableYears.map((year) => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
+                      <SelectItem value="all">Todos</SelectItem>
+                      {tiposUnidadeList.map((tipo) => (
+                        <SelectItem key={tipo} value={tipo}>
+                          {tipo}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-              <div className="mt-6 border-t pt-6">
-                <h3 className="text-lg font-medium mb-2">Filtros Adicionais para Tabela de Hospitais:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                  <div>
-                    <label htmlFor="search-data" className="text-sm font-medium">
-                      Buscar por Nome
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="search-data"
-                        placeholder="Nome do hospital..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8"
-                        disabled={isProcessing || filterUF === "all"}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="select-vinculo-data" className="text-sm font-medium">
-                      Vínculo
-                    </label>
-                    <Select
-                      value={filterTipo}
-                      onValueChange={setFilterTipo}
-                      disabled={isProcessing || filterUF === "all"}
-                    >
-                      <SelectTrigger id="select-vinculo-data">
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        <SelectItem value="publico">SUS</SelectItem>
-                        <SelectItem value="privado">Privado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label htmlFor="select-tipo-unidade-data" className="text-sm font-medium">
-                      Tipo Unidade
-                    </label>
-                    <Select
-                      value={filterTipoUnidade}
-                      onValueChange={setFilterTipoUnidade}
-                      disabled={isProcessing || filterUF === "all"}
-                    >
-                      <SelectTrigger id="select-tipo-unidade-data">
-                        <SelectValue placeholder="Todos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos</SelectItem>
-                        {filterOptions.tiposUnidade.map((tipo) => (
-                          <SelectItem key={tipo} value={tipo}>
-                            {tipo}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {filterUF !== "all" && (
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader className="pb-2 pt-4">
+            <Card className="border-l-4 border-blue-600">
+              <CardHeader className="pb-3 pt-4">
                 <CardTitle className="text-md font-medium">
-                  Resumo para {detailedDataSummary.uf} (Ano: {detailedDataSummary.ano})
+                  Resumo para {filterUF} - Ano: {anoAtualParaExibicao}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-sm pb-4">
+              <CardContent className="text-sm pb-4 grid grid-cols-2 gap-x-4 gap-y-1">
                 <p>
-                  <span className="font-semibold">{detailedDataSummary.totalLeitosFiltrados.toLocaleString()}</span>{" "}
-                  leitos em{" "}
-                  <span className="font-semibold">
-                    {detailedDataSummary.hospitaisComLeitosFiltrados.toLocaleString()}
-                  </span>{" "}
-                  de{" "}
-                  <span className="font-semibold">{detailedDataSummary.totalHospitaisFiltrados.toLocaleString()}</span>{" "}
-                  hospitais listados.
+                  Hospitais Listados:{" "}
+                  <span className="font-semibold">{resumoUFSelecionado.totalHospitais.toLocaleString()}</span>
                 </p>
                 <p>
-                  Leitos SUS:{" "}
-                  <span className="font-semibold">{detailedDataSummary.leitosSUSFiltrados.toLocaleString()}</span>
+                  Total de Leitos:{" "}
+                  <span className="font-semibold">{resumoUFSelecionado.totalLeitos.toLocaleString()}</span>
+                </p>
+                <p>
+                  Hospitais (SUS):{" "}
+                  <span className="font-semibold">{resumoUFSelecionado.hospitaisSUS.toLocaleString()}</span>
+                </p>
+                <p>
+                  Leitos (SUS): <span className="font-semibold">{resumoUFSelecionado.leitosSUS.toLocaleString()}</span>
                 </p>
               </CardContent>
             </Card>
@@ -568,23 +536,25 @@ export default function HospitaisPageClient() {
                 <div className="flex items-center gap-2">
                   <ListChecks />
                   <span>
-                    Hospitais em {filterUF !== "all" ? filterUF : "..."} ({filteredHospitais.length.toLocaleString()})
+                    Hospitais em {filterUF !== "all" ? filterUF : "..."} ({hospitaisParaTabela.length.toLocaleString()})
                   </span>
                 </div>
-                {filterUF !== "all" && <span className="text-sm text-muted-foreground">Ano: {anoParaTabela}</span>}
+                {filterUF !== "all" && (
+                  <span className="text-sm text-muted-foreground">Ano: {anoAtualParaExibicao}</span>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-grow overflow-y-auto">
               {filterUF === "all" ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <MapPin className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-lg font-medium">Selecione um Estado (UF) acima para listar os hospitais.</p>
+                  <p className="text-lg font-medium">Selecione um Estado (UF) para listar os hospitais.</p>
                 </div>
-              ) : filteredHospitais.length === 0 && !isProcessing ? (
+              ) : hospitaisParaTabela.length === 0 && !isProcessing ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Building2 className="h-12 w-12 mx-auto mb-4" />
                   <p className="text-lg font-medium">
-                    Nenhum hospital encontrado para os filtros selecionados em {filterUF} no ano {anoParaTabela}.
+                    Nenhum hospital encontrado para os filtros selecionados em {filterUF} no ano {anoAtualParaExibicao}.
                   </p>
                   <p className="text-sm">Tente ajustar os filtros ou o ano.</p>
                 </div>
@@ -594,23 +564,36 @@ export default function HospitaisPageClient() {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Hospital</TableHead>
+                        {/* Removida a coluna Município */}
                         <TableHead>Tipo Unidade</TableHead>
-                        <TableHead className="text-right">Leitos ({anoParaTabela})</TableHead>
-                        <TableHead>Vínculo</TableHead>
+                        <TableHead className="text-right">Leitos ({anoAtualParaExibicao})</TableHead>
+                        <TableHead>Vínculo SUS</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredHospitais.slice(0, 100).map((hospital) => {
-                        const leitos = getLeitos(hospital, anoParaTabela)
-                        const nome = getNome(hospital)
-                        const detalhesLeitos = getLeitosDetalhes(hospital, anoParaTabela)
+                      {hospitaisParaTabela.slice(0, 100).map((hospital) => {
+                        const leitos = getLeitosNoAno(hospital, anoAtualParaExibicao)
+                        const detalhesLeitos = getLeitosDetalhesNoAno(hospital, anoAtualParaExibicao)
+                        const nome = hospital.nome || `Hospital ${hospital._id}`
+
+                        let tooltipDetalhesLeitos = "Detalhes não disponíveis"
+                        if (detalhesLeitos) {
+                          tooltipDetalhesLeitos = Object.entries(detalhesLeitos)
+                            .map(
+                              ([key, value]) =>
+                                `${key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ")}: ${value}`,
+                            )
+                            .join(" | ")
+                        }
+
                         return (
-                          <TableRow key={hospital._id} className="hover:bg-muted/30">
+                          <TableRow key={hospital.id || hospital._id} className="hover:bg-muted/30">
                             <TableCell className="font-medium">
                               <span className="truncate max-w-xs block" title={nome}>
                                 {nome}
                               </span>
                             </TableCell>
+                            {/* Removida a célula do Município */}
                             <TableCell>
                               {hospital.tipo_unidade && (
                                 <Badge variant="outline" className="text-xs whitespace-nowrap">
@@ -619,15 +602,10 @@ export default function HospitaisPageClient() {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
-                              {leitos > 0 ? (
+                              {leitos !== null && leitos > 0 ? (
                                 <div className="flex items-center justify-end gap-1">
                                   <Bed className="h-4 w-4 text-muted-foreground" />
-                                  <span
-                                    className="font-medium"
-                                    title={`Detalhes: ${Object.entries(detalhesLeitos)
-                                      .map(([k, v]) => `${k.replace("_", " ")}: ${v}`)
-                                      .join(" | ")}`}
-                                  >
+                                  <span className="font-medium" title={tooltipDetalhesLeitos}>
                                     {leitos.toLocaleString()}
                                   </span>
                                 </div>
@@ -637,7 +615,7 @@ export default function HospitaisPageClient() {
                             </TableCell>
                             <TableCell>
                               <Badge variant={hospital.vinculo_sus === "SUS" ? "default" : "secondary"}>
-                                {hospital.vinculo_sus === "SUS" ? "SUS" : "Privado"}
+                                {hospital.vinculo_sus === "SUS" ? "SUS" : "Não SUS"}
                               </Badge>
                             </TableCell>
                           </TableRow>
@@ -645,9 +623,9 @@ export default function HospitaisPageClient() {
                       })}
                     </TableBody>
                   </Table>
-                  {filteredHospitais.length > 100 && (
+                  {hospitaisParaTabela.length > 100 && (
                     <div className="p-4 text-center text-sm text-muted-foreground bg-muted/30 border-t">
-                      Mostrando 100 de {filteredHospitais.length.toLocaleString()} resultados.
+                      Mostrando os primeiros 100 de {hospitaisParaTabela.length.toLocaleString()} resultados.
                     </div>
                   )}
                 </div>
@@ -656,42 +634,28 @@ export default function HospitaisPageClient() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="yearly" className="space-y-6 flex-grow mt-6">
+        <TabsContent value="yearly" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
                 {filterUF === "all" ? <Globe className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
-                {evolutionTitle}
+                Evolução de Leitos e Hospitais {filterUF !== "all" ? `em ${filterUF}` : "(Nacional)"}
               </CardTitle>
-              {filterUF === "all" && <p className="text-sm text-muted-foreground">Visão geral de todos os estados.</p>}
-              {filterUF !== "all" && (
-                <p className="text-sm text-muted-foreground">Dados específicos para {filterUF}.</p>
-              )}
             </CardHeader>
             <CardContent>
-              {evolutionTabChartData.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    Nenhum dado histórico para o gráfico {filterUF !== "all" ? `em ${filterUF}` : "nacional"}.
-                  </p>
-                  {filterUF === "all" && availableYears.length === 0 && (
-                    <p className="text-xs mt-1">Verifique se há dados de hospitais carregados.</p>
-                  )}
-                  {filterUF !== "all" && (
-                    <p className="text-xs mt-1">
-                      Este estado pode não ter dados históricos ou não corresponder aos filtros.
-                    </p>
-                  )}
+              {chartDataEvolucao.length === 0 && !isProcessing ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4" />
+                  <p>Nenhum dado histórico para o gráfico {filterUF !== "all" ? `em ${filterUF}` : "nacional"}.</p>
                 </div>
               ) : (
                 <div className="h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={evolutionTabChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <LineChart data={chartDataEvolucao} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="ano" />
-                      <YAxis yAxisId="left" orientation="left" stroke="#f97316" />
-                      <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" />
+                      <YAxis yAxisId="left" orientation="left" stroke="#f97316" name="Leitos" />
+                      <YAxis yAxisId="right" orientation="right" stroke="#3b82f6" name="Hospitais" />
                       <Tooltip
                         formatter={(value: number, name: string) => [
                           value.toLocaleString(),
@@ -727,33 +691,27 @@ export default function HospitaisPageClient() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <BarChart3 className="h-5 w-5" /> {evolutionStatsTitle}
+                <BarChart3 className="h-5 w-5" />
+                Estatísticas Anuais {filterUF !== "all" ? `em ${filterUF}` : "(Nacional)"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {evolutionTabYearlyStats.length === 0 ? (
-                <div className="text-center py-8">
-                  <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    Nenhuma estatística anual disponível {filterUF !== "all" ? `para ${filterUF}` : "em nível nacional"}
-                    .
-                  </p>
+              {statsEvolucaoAnual.length === 0 && !isProcessing ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4" />
+                  <p>Nenhuma estatística anual disponível.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {evolutionTabYearlyStats.map((stats) => (
+                  {statsEvolucaoAnual.map((stats) => (
                     <Card
                       key={stats.ano}
                       className={`border-2 hover:border-blue-400 transition-colors cursor-pointer ${selectedYear === stats.ano.toString() ? "border-blue-500 ring-2 ring-blue-300" : "border-border"}`}
-                      onClick={() => {
-                        setSelectedYear(stats.ano.toString())
-                        // Opcional: mudar para a aba "Dados por Estado" ao clicar aqui, se fizer sentido para o fluxo.
-                        // setActiveTab("data");
-                      }}
+                      onClick={() => setSelectedYear(stats.ano.toString())}
                     >
                       <CardHeader className="pb-2 pt-4">
                         <CardTitle className="text-lg flex items-center gap-2">
-                          <Calendar className="h-4 w-4" /> {stats.ano}{" "}
+                          <Calendar className="h-4 w-4" /> {stats.ano}
                           {selectedYear === stats.ano.toString() && (
                             <Badge className="ml-auto">Ano de Referência</Badge>
                           )}
@@ -767,13 +725,13 @@ export default function HospitaisPageClient() {
                         <div className="flex justify-between text-muted-foreground">
                           <span>Hospitais:</span>
                           <span>
-                            {stats.total.toLocaleString()} ({stats.hospitaisComLeitos} c/ leitos)
+                            {stats.totalHospitais.toLocaleString()} ({stats.hospitaisComLeitos} c/ leitos)
                           </span>
                         </div>
                         <div className="flex justify-between text-muted-foreground">
                           <span>SUS:</span>
                           <span className="text-green-600">
-                            {stats.publicos.toLocaleString()} ({stats.leitosSUS.toLocaleString()} leitos)
+                            {stats.hospitaisSUS.toLocaleString()} hosp. ({stats.leitosSUS.toLocaleString()} leitos)
                           </span>
                         </div>
                       </CardContent>
