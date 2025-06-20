@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import { Loader2 } from "lucide-react"
 import Layout from "@/components/layout"
 import BrazilMapGeolocation from "@/components/brazil-map-geolocation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,7 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RefreshCw } from "lucide-react"
-import HospitalRegionalStats from "@/components/hospital-regional-stats"
+import "leaflet/dist/leaflet.css"
+import L from "leaflet"
 
 // Define regions for filtering
 const regions = [
@@ -24,6 +26,20 @@ const regions = [
   { id: "south", name: "Sul" },
 ]
 
+interface HospitalMapData {
+  id: string
+  nome: string
+  latitude: number
+  longitude: number
+  leitos: number
+}
+
+const mockHospitalData: HospitalMapData[] = [
+  { id: "1", nome: "Hospital Central de SP", latitude: -23.5505, longitude: -46.6333, leitos: 500 },
+  { id: "2", nome: "Hospital da Criança RJ", latitude: -22.9068, longitude: -43.1729, leitos: 300 },
+  { id: "3", nome: "Hospital Regional de BH", latitude: -19.9167, longitude: -43.9345, leitos: 400 },
+]
+
 export default function MapPageClient() {
   const [selectedRegion, setSelectedRegion] = useState("all")
   const [activeTab, setActiveTab] = useState("beds")
@@ -31,6 +47,40 @@ export default function MapPageClient() {
   const [filterValue, setFilterValue] = useState(0)
   const [selectedRegions, setSelectedRegions] = useState<string[]>(regions.map((r) => r.id))
   const [viewMode, setViewMode] = useState<"region" | "state">("region")
+  const [loading, setLoading] = useState(true)
+  const [mapData, setMapData] = useState<HospitalMapData[]>([])
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<L.Map | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMapData(mockHospitalData)
+      setLoading(false)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!loading && mapData.length > 0 && mapContainerRef.current && !mapInstanceRef.current) {
+      // Evitar reinicialização
+      mapInstanceRef.current = L.map(mapContainerRef.current).setView([-14.235, -51.9253], 4)
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(mapInstanceRef.current)
+
+      mapData.forEach((hospital) => {
+        L.marker([hospital.latitude, hospital.longitude])
+          .addTo(mapInstanceRef.current!)
+          .bindPopup(`<b>${hospital.nome}</b><br>Leitos: ${hospital.leitos}`)
+      })
+    }
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [loading, mapData])
 
   // Filter thresholds based on the active tab
   const getMaxFilterValue = () => {
@@ -114,6 +164,22 @@ export default function MapPageClient() {
 
   // Get hospital stats for the new tab
   const hospitalStats = calculateFilteredHospitalStats(selectedRegions)
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-6">
+          <h1 className="text-2xl font-bold mb-6">Mapa de Saúde do Brasil</h1>
+          <div className="flex flex-col items-center justify-center min-h-[calc(100vh-160px)] text-slate-700 dark:text-slate-300">
+            {" "}
+            {/* Ajustado min-height */}
+            <Loader2 className="h-12 w-12 animate-spin text-sky-600 mb-4" />
+            <p className="text-lg font-semibold">Carregando dados do mapa...</p>
+          </div>
+        </div>
+      </Layout>
+    )
+  }
 
   return (
     <Layout>
@@ -245,7 +311,16 @@ export default function MapPageClient() {
               </TabsContent>
 
               <TabsContent value="hospitais-privados" className="mt-0">
-                <HospitalRegionalStats filteredRegions={selectedRegions} />
+                <div
+                  ref={mapContainerRef}
+                  className="w-full flex-grow min-h-[calc(100vh-160px)] bg-slate-100 dark:bg-slate-800/50 rounded-lg shadow-inner"
+                >
+                  {!loading && mapData.length === 0 && (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-slate-500 dark:text-slate-400">Nenhum dado de hospital para exibir no mapa.</p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
             </div>
 
