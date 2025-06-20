@@ -5,13 +5,14 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/contexts/auth-context"
+import Layout from "@/components/layout" // Importe o componente Layout
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Dashboard CN Saúde",
   description: "Sistema de monitoramento de saúde do Brasil",
-    generator: 'v0.dev'
+  generator: "v0.dev",
 }
 
 export default function RootLayout({
@@ -20,10 +21,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <Layout>{children}</Layout> {/* Envolva children com o Layout */}
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>
